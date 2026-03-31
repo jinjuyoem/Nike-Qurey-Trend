@@ -590,7 +590,7 @@ export default function TrendDashboard({
             /* 보기 모드 + 기준 선택 */
             <div>
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14, opacity: 0.75 }}>
-                기준 브랜드를 선택하세요. 기준 선은 바라하게, 상단 위젯도 기준 기준으로 매핑됩니다.
+                기준 브랜드를 선택하세요.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {activeGroups.map((g, idx) => g && (
