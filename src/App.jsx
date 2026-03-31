@@ -19,11 +19,11 @@ const BRAND_COLORS = {
 
 // Category Comparison (대시보드 2)
 const CATEGORY_GROUPS = [
-  { id: 'brand', name: 'Brand Core', keywords: ['나이키', 'nike'] },
-  { id: 'lifestyle', name: 'Lifestyle', keywords: ['에어포스', '조던', '덩크로우'] },
-  { id: 'running', name: 'Running', keywords: ['인빈시블', '페가수스', '베이퍼플라이', '나이키 러닝화'] },
-  { id: 'apparel', name: 'Apparel', keywords: ['나이키 후드', '나이키 바람막이', '맨투맨'] },
-  { id: 'football', name: 'Football', keywords: ['나이키 축구화', '머큐리얼', '티엠포'] }
+  { id: 'brand', name: '브랜드 코어', keywords: ['나이키', 'nike'] },
+  { id: 'lifestyle', name: '라이프스타일', keywords: ['에어포스', '조던', '덩크로우'] },
+  { id: 'running', name: '러닝화', keywords: ['인빈시블', '페가수스', '베이퍼플라이', '나이키 러닝화'] },
+  { id: 'apparel', name: '의류', keywords: ['나이키 후드', '나이키 바람막이', '맨투맨'] },
+  { id: 'football', name: '축구/풋살화', keywords: ['나이키 축구화', '머큐리얼', '티엠포'] }
 ];
 
 const CATEGORY_COLORS = {
@@ -42,18 +42,18 @@ export default function App() {
       <aside className="sidebar">
         <div className="sidebar-logo">
           <TrendingUp className="logo-icon" size={28} color="var(--text-primary)" />
-          <span>Nike <span style={{color: 'var(--text-secondary)'}}>Trends</span></span>
+          <span>Nike <span style={{ color: 'var(--text-secondary)' }}>Trends</span></span>
         </div>
-        
+
         <nav className="sidebar-nav">
-          <div 
+          <div
             className={`nav-item ${activeTab === 'brand' ? 'active' : ''}`}
             onClick={() => setActiveTab('brand')}
           >
             <BarChart2 size={20} />
             <span>Brand Query Trend</span>
           </div>
-          <div 
+          <div
             className={`nav-item ${activeTab === 'category' ? 'active' : ''}`}
             onClick={() => setActiveTab('category')}
           >
@@ -62,7 +62,7 @@ export default function App() {
           </div>
 
           <div style={{ marginTop: 'auto', paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-            <div 
+            <div
               className={`nav-item ${activeTab === 'guide' ? 'active' : ''}`}
               onClick={() => setActiveTab('guide')}
             >
@@ -75,9 +75,9 @@ export default function App() {
 
       <main className="main-content">
         {activeTab === 'brand' && (
-          <TrendDashboard 
+          <TrendDashboard
             title="Nike Query Trend Tracker"
-            subtitle="Nike 쿼리트렌드를 경쟁사 쿼리 트렌드와 비교합니다."
+            subtitle="Nike 쿼리 트렌드를 경쟁사 쿼리 트렌드와 비교합니다."
             groups={BRAND_GROUPS}
             colors={BRAND_COLORS}
             showKeywords={true}
@@ -86,9 +86,9 @@ export default function App() {
             showSummaryCards={true}
           />
         )}
-        
+
         {activeTab === 'category' && (
-          <TrendDashboard 
+          <TrendDashboard
             title="Nike Query Trend Tracker"
             subtitle="나이키 내부의 주요 카테고리별(러닝화, 라이프스타일 등) 검색 트렌드 흐름 분석"
             groups={CATEGORY_GROUPS}
@@ -103,7 +103,7 @@ export default function App() {
         {activeTab === 'guide' && (
           <ExplanationPage />
         )}
-        
+
         <footer style={{ marginTop: 'auto', paddingTop: 40, paddingBottom: 20, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13, borderTop: '1px solid var(--border-color)', width: '100%' }}>
           <p style={{ margin: 0 }}>&copy; {new Date().getFullYear()} jinjuyeomcj. All rights reserved.</p>
           <p style={{ margin: '8px 0 0 0', opacity: 0.7, fontSize: 12 }}>Data Source: NAVER Datalab Search API, Search AD API</p>

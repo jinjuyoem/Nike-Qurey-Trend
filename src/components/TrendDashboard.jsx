@@ -628,7 +628,22 @@ export default function TrendDashboard({
         <div className="chart-header" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
             <div>
-              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0 }}>쿼리 트렌드 <small style={{ fontSize: 13, color: 'var(--text-secondary)', marginLeft: 10, fontWeight: 500, opacity: 0.6 }}>(단위: 검색수)</small></h3>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                쿼리 트렌드 
+                <small style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500, opacity: 0.6 }}>(단위: 검색수)</small>
+                <span style={{ 
+                  fontSize: 10, 
+                  fontWeight: 900, 
+                  color: 'var(--accent-primary)', 
+                  border: '1px solid rgba(255,255,255,0.15)', 
+                  padding: '2px 10px', 
+                  borderRadius: 6, 
+                  textTransform: 'uppercase',
+                  opacity: 0.8,
+                  letterSpacing: '0.05em',
+                  background: 'rgba(255,255,255,0.03)'
+                }}>Powered by NAVER Search Data</span>
+              </h3>
               <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {/* 기준 기간 표시 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
