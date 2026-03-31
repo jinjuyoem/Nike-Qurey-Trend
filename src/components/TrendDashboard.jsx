@@ -80,14 +80,31 @@ export default function TrendDashboard({
     setSelectedBrands(initialSelected);
   }, [activeGroups]);
 
+  // 캐시 키 생성 (설정 정보 + 오늘 날짜 기준)
+  // 설정이 바뀌거나 날짜가 지나면 캐시가 자동 갱신됨
+  const cacheKeySuffix = useMemo(() => {
+    const groupFingerprint = JSON.stringify(activeGroups.map(g => ({ id: g.id, keywords: g.keywords })));
+    const today = format(new Date(), 'yyyy-MM-dd');
+    return `${groupFingerprint}_${today}`;
+  }, [activeGroups]);
+
   const fetchDatalab = async () => {
     if (!activeGroups || activeGroups.length === 0 || loading) return;
+    
+    // 1. 캐시 확인
+    const cacheKey = `nike_datalab_cache_${cacheKeySuffix}`;
+    const cachedData = localStorage.getItem(cacheKey);
+    if (cachedData) {
+      console.log('[DEBUG] Loading Data from Cache:', cacheKey);
+      setRawData(JSON.parse(cachedData));
+      return;
+    }
+
     setLoading(true);
     try {
       const filteredGroups = activeGroups.filter(g => g && g.name && g.keywords);
       const allKeywords = filteredGroups.flatMap(g => g.keywords || []);
       
-      // 항상 3년치 고정 범위로 API 요청 (시각화는 customRange로 필터링)
       const yesterday = subDays(new Date(), 1);
       const threeYearsAgo = subYears(yesterday, 3);
 
@@ -102,16 +119,13 @@ export default function TrendDashboard({
         }))
       };
 
-      console.log('[DEBUG] Request Body:', requestBody);
       const res = await axios.post('/api/naver-datalab/v1/datalab/search', requestBody);
       const results = res.data.results || [];
-      console.log('[DEBUG] Results from API:', results);
 
       if (results.length > 0) {
         const volumeMap = await fetchKeywordAdVolumes(allKeywords);
         const groupMultipliers = {};
         
-        // 1. 역산 배수 계산 (인덱스 매칭 기반으로 신뢰도 강화)
         results.forEach((resGroup, index) => {
           const groupInfo = filteredGroups[index];
           if (!groupInfo) return;
@@ -141,16 +155,12 @@ export default function TrendDashboard({
           groupMultipliers[groupInfo.id] = multiplier;
         });
 
-        console.log('[DEBUG] Final Multipliers:', groupMultipliers);
-
-        // 2. 데이터 포맷팅
         const periods = (results[0].data || []).map(d => d.period);
         const formattedData = periods.map(period => {
-          const row = { period, dateObj: startOfDay(new Date(period)) };
+          const row = { period, dateObj: startOfDay(new Date(period)).getTime() }; // store as timestamp for cache stability
           results.forEach((resGroup, index) => {
             const groupInfo = filteredGroups[index];
             if (!groupInfo) return;
-            
             const dataPoint = (resGroup.data || []).find(d => d.period === period);
             const ratio = dataPoint ? dataPoint.ratio : 0;
             row[groupInfo.id] = ratio * (groupMultipliers[groupInfo.id] || 0);
@@ -159,31 +169,15 @@ export default function TrendDashboard({
         });
 
         let processedData = formattedData;
-        if (timeUnit === 'week') {
-          const weekly = {};
-          formattedData.forEach(d => {
-            const weekKey = format(startOfWeek(d.dateObj), 'yyyy-MM-dd');
-            if (!weekly[weekKey]) {
-              weekly[weekKey] = { period: weekKey, dateObj: startOfWeek(d.dateObj) };
-              filteredGroups.forEach(g => { if(g && g.id) weekly[weekKey][g.id] = 0; });
-            }
-            filteredGroups.forEach(g => { if(g && g.id) weekly[weekKey][g.id] += (d[g.id] || 0); });
-          });
-          processedData = Object.values(weekly);
-        } else if (timeUnit === 'month') {
-          const monthly = {};
-          formattedData.forEach(d => {
-            const monthKey = format(d.dateObj, 'yyyy-MM');
-            if (!monthly[monthKey]) {
-              monthly[monthKey] = { period: monthKey, dateObj: new Date(monthKey + '-01') };
-              filteredGroups.forEach(g => { if(g && g.id) monthly[monthKey][g.id] = 0; });
-            }
-            filteredGroups.forEach(g => { if(g && g.id) monthly[monthKey][g.id] += (d[g.id] || 0); });
-          });
-          processedData = Object.values(monthly);
-        }
+        
+        // 날짜 객체 처리 (JSON 저장 시 timestamp로 변환되므로 다시 객체화 로직 필요하나 로직 상단에서 set 시에 map 처리)
+        // 캐시 저장
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(processedData));
+          // 불필요한 옛 캐시 삭제 (선택 사항)
+        } catch(e) { console.warn('Cache limit exceeded', e); }
 
-        setRawData(processedData);
+        setRawData(processedData.map(d => ({ ...d, dateObj: new Date(d.dateObj) })));
       }
     } finally {
       setLoading(false);
@@ -192,52 +186,55 @@ export default function TrendDashboard({
 
   const fetchDemographics = async () => {
     if (!activeGroups || activeGroups.length === 0 || !baseGroupId) return;
+
+    // 캐시 확인
+    const demoCacheKey = `nike_demo_cache_${baseGroupId}_${cacheKeySuffix}`;
+    const cachedDemo = localStorage.getItem(demoCacheKey);
+    if (cachedDemo) {
+      console.log('[DEBUG] Loading Demo from Cache:', demoCacheKey);
+      setDemoData(JSON.parse(cachedDemo));
+      return;
+    }
+
     try {
       const baseGroup = activeGroups.find(g => g.id === baseGroupId);
       if (!baseGroup) return;
 
       const stableDay = subDays(new Date(), 3);
       const oneMonthAgo = subMonths(stableDay, 1);
-      
-      // Nike의 경우 "운동화(50000788)" 카테고리를 기준으로 인구통계 분포(Shopping Insight) 추출
-      // 검색어 트렌드와 달리 쇼핑 인사이트는 실제 검색자 비중(%)을 반환하므로 Gauge 차트에 적합함
       const catId = '50000788'; 
 
-      // 1. Gender Distribution
-      const genderRes = await axios.post('/api/naver-datalab/v1/datalab/shopping/category/keyword/gender', {
-        startDate: format(oneMonthAgo, 'yyyy-MM-dd'),
-        endDate: format(stableDay, 'yyyy-MM-dd'),
-        timeUnit: 'month',
-        category: catId,
-        keyword: baseGroup.name
-      });
+      const [genderRes, ageRes] = await Promise.all([
+        axios.post('/api/naver-datalab/v1/datalab/shopping/category/keyword/gender', {
+          startDate: format(oneMonthAgo, 'yyyy-MM-dd'),
+          endDate: format(stableDay, 'yyyy-MM-dd'),
+          timeUnit: 'month',
+          category: catId,
+          keyword: baseGroup.name
+        }),
+        axios.post('/api/naver-datalab/v1/datalab/shopping/category/keyword/age', {
+          startDate: format(oneMonthAgo, 'yyyy-MM-dd'),
+          endDate: format(stableDay, 'yyyy-MM-dd'),
+          timeUnit: 'month',
+          category: catId,
+          keyword: baseGroup.name
+        })
+      ]);
       
       const gData = genderRes.data.results[0]?.data || [];
+      const aData = ageRes.data.results[0]?.data || [];
+      
       let male = 0, female = 0;
       if (gData.length > 0) {
-        // 가장 최근 월의 비중 합산
-        const latestG = gData[gData.length - 1];
-        male = latestG.ratio || 0;
-        female = 100 - male; // 쇼핑 인사이트 젠더는 m 기준 비중을 반환함?
-        // 실제 API 문서는 m/f를 각각 주는지 확인 필요하나 대개 응답에 정의됨
-        // 실제로는 results[0].data에 각 성별 데이터가 오는 경우가 많음
+          const latestGItems = gData.filter(d => d.period === gData[gData.length-1].period);
+          latestGItems.forEach(item => {
+              if (item.group === 'm') male = item.ratio;
+              if (item.group === 'f') female = item.ratio;
+          });
       }
 
-      // 2. Age Distribution
-      const ageRes = await axios.post('/api/naver-datalab/v1/datalab/shopping/category/keyword/age', {
-        startDate: format(oneMonthAgo, 'yyyy-MM-dd'),
-        endDate: format(stableDay, 'yyyy-MM-dd'),
-        timeUnit: 'month',
-        category: catId,
-        keyword: baseGroup.name
-      });
-
-      const aData = ageRes.data.results[0]?.data || [];
       const ages = { '10s': 0, '20s': 0, '30s': 0, '40s': 0, '50s+': 0 };
-      
       if (aData.length > 0) {
-        // 모든 연령대 코드를 매핑 (1,2: 10대 / 3,4: 20대 / 5,6: 30대 ...)
-        // 쇼핑인사이트는 각 연령대별 ratio를 반환
         const latestA = aData.filter(d => d.period === aData[aData.length-1].period);
         latestA.forEach(item => {
           if (['1', '2'].includes(item.group)) ages['10s'] += item.ratio;
@@ -248,35 +245,35 @@ export default function TrendDashboard({
         });
       }
 
-      // Gender 데이터 보정 (API 응답 필드명에 따른 mapping)
-      // 실제 API는 group: 'm' / 'f' 형태로 주는 경우가 많음
-      if (gData.length > 0) {
-          const latestGItems = gData.filter(d => d.period === gData[gData.length-1].period);
-          latestGItems.forEach(item => {
-              if (item.group === 'm') male = item.ratio;
-              if (item.group === 'f') female = item.ratio;
-          });
-      }
-
-      setDemoData({
-        gender: { male, female },
-        ages
-      });
+      const finalDemo = { gender: { male, female }, ages };
+      localStorage.setItem(demoCacheKey, JSON.stringify(finalDemo));
+      setDemoData(finalDemo);
     } catch (err) {
-      console.error('[DEBUG] Demo Fetch Error (Shopping Insight):', err.response?.data || err.message);
-      // Fallback: 기존 데이터랩 방식으로 재시도하거나 0으로 세팅하여 에러 메시지 유도
+      console.error('[DEBUG] Demo Fetch Error:', err.response?.data || err.message);
       setDemoData({ gender: { male: 0, female: 0 }, ages: { '10s': 0, '20s': 0, '30s': 0, '40s': 0, '50s+': 0 } });
     }
   };
 
   useEffect(() => {
+    // 1. Raw Data (Trend)
     fetchDatalab();
+  }, [cacheKeySuffix]);
+
+  useEffect(() => {
+    // 2. Demographics
     fetchDemographics();
-  }, [activeGroups, customRange, baseGroupId]);
+  }, [cacheKeySuffix, baseGroupId]);
 
   const chartData = useMemo(() => {
     if (!rawData || rawData.length === 0) return [];
-    const filtered = rawData.filter(d => {
+    
+    // JSON 복원 시 dateObj가 timestamp(ms)일 수 있으므로 처리
+    const processedRawData = rawData.map(d => ({
+      ...d,
+      dateObj: d.dateObj instanceof Date ? d.dateObj : new Date(d.dateObj)
+    }));
+
+    const filtered = processedRawData.filter(d => {
       const dt = d.dateObj.getTime();
       return dt >= startOfDay(customRange.start).getTime() && dt <= endOfDay(customRange.end).getTime();
     });
