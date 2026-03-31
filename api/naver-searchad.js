@@ -1,11 +1,9 @@
 import axios from 'axios';
 import crypto from 'crypto-js';
 
-// 기본 정보 (브라우저 노출 가능)
-const LICENSE_KEY = '01000000000c0941d2c71e0667d5da49ea25352b60d9bf313e683d709ecaecfaaec9cccf9c';
-const CUSTOMER_ID = '3462476';
-
 // 서버측 환경 변수 (브라우저 노출 불가)
+const LICENSE_KEY = process.env.VITE_NAVER_SEARCHAD_LICENSE || process.env.NAVER_SEARCHAD_LICENSE || '01000000000c0941d2c71e0667d5da49ea25352b60d9bf313e683d709ecaecfaaec9cccf9c';
+const CUSTOMER_ID = process.env.VITE_NAVER_SEARCHAD_CUSTOMER_ID || process.env.NAVER_SEARCHAD_CUSTOMER_ID || '3462476';
 const SECRET_KEY = process.env.VITE_NAVER_SEARCHAD_SECRET || process.env.NAVER_SEARCHAD_SECRET || 'AQAAAAAMCUHSxx4GZ9XaSeolNStg8RgYtE150z1Is9UQ2+q0dw==';
 
 export default async function handler(req, res) {
