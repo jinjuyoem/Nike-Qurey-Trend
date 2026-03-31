@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/naver-datalab/:path*",
+      "destination": "/api/naver-datalab"
+    },
+    {
+      "source": "/api/naver-searchad/:path*",
+      "destination": "/api/naver-searchad"
+    }
+  ]
+}
