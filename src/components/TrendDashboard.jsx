@@ -373,6 +373,42 @@ export default function TrendDashboard({
     setIsEditingGroups(false);
   };
 
+  const handleDownload = () => {
+    if (!chartData || chartData.length === 0) return;
+
+    // Header row
+    const headers = ['Period'];
+    activeGroups.forEach(g => {
+      if (g) {
+        headers.push(g.name);
+        if (compareMode !== 'none') headers.push(`${g.name}(Compare)`);
+      }
+    });
+
+    // Data rows
+    const rows = chartData.map(d => {
+      const row = [d.period];
+      activeGroups.forEach(g => {
+        if (g) {
+          row.push(d[g.id] || 0);
+          if (compareMode !== 'none') row.push(d[`${g.id}_compare`] || 0);
+        }
+      });
+      return row.join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `nike_trend_data_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   return (
     <div className="dashboard-view">
@@ -685,7 +721,28 @@ export default function TrendDashboard({
                 })()}
               </div>
             </div>
-            {/* 브랜드 토글 충 */}
+
+            {/* 데이터 다운로드 버튼 */}
+            <button 
+              onClick={handleDownload}
+              disabled={loading || !chartData || chartData.length === 0}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 20px', borderRadius: 12,
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: 'var(--text-primary)',
+                fontSize: 13, fontWeight: 700,
+                cursor: 'pointer', transition: 'all 0.2s',
+                opacity: (loading || !chartData || chartData.length === 0) ? 0.3 : 1,
+                pointerEvents: (loading || !chartData || chartData.length === 0) ? 'none' : 'auto'
+              }}
+            >
+              <Download size={18} />
+              데이터 다운로드
+            </button>
+
+            {/* 브랜드 토글 층 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
               {loading && <div className="loader" style={{ marginRight: 8 }} />}
               {activeGroups.map((g, idx) => g && (
