@@ -196,14 +196,14 @@ export default function TrendDashboard({
       const baseGroup = activeGroups.find(g => g.id === baseGroupId);
       if (!baseGroup) return;
 
-      const yesterday = subDays(new Date(), 1);
-      const oneMonthAgo = subMonths(yesterday, 1);
+      const stableDay = subDays(new Date(), 3);
+      const oneMonthAgo = subMonths(stableDay, 1);
 
       // 1. Gender Split (Base Brand)
       const fetchGender = async (gender) => {
         const res = await axios.post('/api/naver-datalab/v1/datalab/search', {
           startDate: format(oneMonthAgo, 'yyyy-MM-dd'),
-          endDate: format(yesterday, 'yyyy-MM-dd'),
+          endDate: format(stableDay, 'yyyy-MM-dd'),
           timeUnit: 'month',
           keywordGroups: [{ groupName: baseGroup.name, keywords: baseGroup.keywords }],
           gender
@@ -215,7 +215,7 @@ export default function TrendDashboard({
       const fetchAge = async (ages) => {
         const res = await axios.post('/api/naver-datalab/v1/datalab/search', {
           startDate: format(oneMonthAgo, 'yyyy-MM-dd'),
-          endDate: format(yesterday, 'yyyy-MM-dd'),
+          endDate: format(stableDay, 'yyyy-MM-dd'),
           timeUnit: 'month',
           keywordGroups: [{ groupName: baseGroup.name, keywords: baseGroup.keywords }],
           ages
@@ -479,7 +479,7 @@ export default function TrendDashboard({
       return row.join(',');
     });
 
-    const csvContent = [headers.join(','), ...rows].join('\n');
+    const csvContent = [headers.join(','), ...rows].join('\r\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -593,62 +593,50 @@ export default function TrendDashboard({
         </div>
       )}
       
-      {/* AI 인사이트 & 성별/연령 분석 섹션 */}
-      {autoInsights && demoData && (
-        <div className="insight-section glass-card" style={{ marginBottom: 36, padding: '28px 32px', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid #03c75a' }}>
-          <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
-            {/* 텍스트 인사이트 */}
-            <div style={{ flex: '1.5', minWidth: 300 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <TrendingUp size={20} color="#03c75a" />
-                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 850 }}>Nike Brand Insight</h4>
+      {/* 인구통계 분석 섹션 */}
+      {demoData && (
+        <div className="insight-section glass-card" style={{ marginBottom: 36, padding: '24px 32px', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid #03c75a' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <Activity size={20} color="#03c75a" />
+            <h4 style={{ margin: 0, fontSize: 17, fontWeight: 850 }}>Brand Demographics <small style={{ fontWeight: 500, fontSize: 12, opacity: 0.5, marginLeft: 8 }}>기준 브랜드 검색자 분석</small></h4>
+          </div>
+          
+          <div style={{ display: 'flex', gap: 60, flexWrap: 'wrap' }}>
+            {/* 성별 비중 */}
+            <div style={{ flex: '1', minWidth: 250 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+                <span>성별 비중 (Gender)</span>
+                <span style={{ fontSize: 11, opacity: 0.6 }}>최근 30일</span>
               </div>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {autoInsights.map((text, i) => (
-                  <li key={i} style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', display: 'flex', gap: 10 }}>
-                    <span style={{ color: '#03c75a', fontWeight: 900 }}>•</span>
-                    {text}
-                  </li>
-                ))}
-              </ul>
+              <div style={{ height: 12, borderRadius: 6, background: 'rgba(255,255,255,0.05)', display: 'flex', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female)) * 100)}%`, background: '#38bdf8', transition: 'width 1s' }} />
+                <div style={{ flex: 1, background: '#f472b6', transition: 'width 1s' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 12, fontWeight: 700 }}>
+                <span style={{ color: '#38bdf8' }}>남성 {Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female)) * 100)}%</span>
+                <span style={{ color: '#f472b6' }}>여성 {100 - Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female)) * 100)}%</span>
+              </div>
             </div>
 
-            {/* 인구통계 시각화 */}
-            <div style={{ flex: '1', minWidth: 280, display: 'flex', flexDirection: 'column', gap: 24, paddingLeft: 32, borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
-              {/* 성별 비중 */}
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
-                  <span>성별 비중 (Gender)</span>
-                  <span style={{ fontSize: 11, opacity: 0.6 }}>최근 30일 기준</span>
-                </div>
-                <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.05)', display: 'flex', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female)) * 100)}%`, background: '#38bdf8', transition: 'width 1s' }} />
-                  <div style={{ flex: 1, background: '#f472b6', transition: 'width 1s' }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, fontWeight: 600 }}>
-                  <span style={{ color: '#38bdf8' }}>남성 {Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female)) * 100)}%</span>
-                  <span style={{ color: '#f472b6' }}>여성 {100 - Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female)) * 100)}%</span>
-                </div>
-              </div>
-
-              {/* 연령별 분포 */}
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>연령별 관심도 (Ages)</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {Object.entries(demoData.ages).map(([age, ratio]) => {
-                    const max = Math.max(...Object.values(demoData.ages));
-                    const pct = max > 0 ? (ratio / max) * 100 : 0;
-                    return (
-                      <div key={age} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span style={{ width: 35, fontSize: 11, color: 'var(--text-secondary)' }}>{age}</span>
-                        <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${pct}%`, height: '100%', background: '#03c75a', opacity: 0.8, borderRadius: 3 }} />
-                        </div>
-                        <span style={{ width: 30, fontSize: 11, fontWeight: 700, textAlign: 'right' }}>{Math.round(pct)}%</span>
+            {/* 연령별 분포 */}
+            <div style={{ flex: '1.5', minWidth: 300 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 16 }}>연령별 관심도 (Age Groups)</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px 24px' }}>
+                {Object.entries(demoData.ages).map(([age, ratio]) => {
+                  const max = Math.max(...Object.values(demoData.ages));
+                  const pct = max > 0 ? (ratio / max) * 100 : 0;
+                  return (
+                    <div key={age} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600 }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>{age}</span>
+                        <span style={{ color: '#fff' }}>{Math.round(pct)}%</span>
                       </div>
-                    );
-                  })}
-                </div>
+                      <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: '#03c75a', opacity: 0.8 }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -866,47 +854,50 @@ export default function TrendDashboard({
               </div>
             </div>
 
-            {/* 데이터 다운로드 버튼 */}
-            <button 
-              onClick={handleDownload}
-              disabled={loading || !chartData || chartData.length === 0}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '10px 20px', borderRadius: 12,
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: 'var(--text-primary)',
-                fontSize: 13, fontWeight: 700,
-                cursor: 'pointer', transition: 'all 0.2s',
-                opacity: (loading || !chartData || chartData.length === 0) ? 0.3 : 1,
-                pointerEvents: (loading || !chartData || chartData.length === 0) ? 'none' : 'auto'
-              }}
-            >
-              <Download size={18} />
-              데이터 다운로드
-            </button>
-
-            {/* 브랜드 토글 층 */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            {/* 브랜드 토글 & 데이터 다운로드 (우측 정렬) */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'flex-end', flex: 1 }}>
               {loading && <div className="loader" style={{ marginRight: 8 }} />}
-              {activeGroups.map((g, idx) => g && (
-                <button
-                  key={g.id}
-                  onClick={() => setSelectedBrands(p => ({...p, [g.id]: !p[g.id]}))}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 7,
-                    padding: '6px 14px', borderRadius: 20,
-                    border: `1.5px solid ${selectedBrands[g.id] ? PALETTE[idx % PALETTE.length] : 'rgba(255,255,255,0.15)'}`,
-                    background: selectedBrands[g.id] ? `rgba(${parseInt(PALETTE[idx%PALETTE.length].slice(1,3),16)},${parseInt(PALETTE[idx%PALETTE.length].slice(3,5),16)},${parseInt(PALETTE[idx%PALETTE.length].slice(5,7),16)},0.12)` : 'rgba(255,255,255,0.04)',
-                    color: selectedBrands[g.id] ? PALETTE[idx % PALETTE.length] : 'var(--text-secondary)',
-                    fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.18s',
-                    opacity: selectedBrands[g.id] ? 1 : 0.5,
-                  }}
-                >
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: PALETTE[idx % PALETTE.length], opacity: selectedBrands[g.id] ? 1 : 0.4 }} />
-                  {g.name}
-                </button>
-              ))}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {activeGroups.map((g, idx) => g && (
+                  <button
+                    key={g.id}
+                    onClick={() => setSelectedBrands(p => ({...p, [g.id]: !p[g.id]}))}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 7,
+                      padding: '5px 12px', borderRadius: 20,
+                      border: `1.5px solid ${selectedBrands[g.id] ? PALETTE[idx % PALETTE.length] : 'rgba(255,255,255,0.15)'}`,
+                      background: selectedBrands[g.id] ? `rgba(${parseInt(PALETTE[idx%PALETTE.length].slice(1,3),16)},${parseInt(PALETTE[idx%PALETTE.length].slice(3,5),16)},${parseInt(PALETTE[idx%PALETTE.length].slice(5,7),16)},0.12)` : 'rgba(255,255,255,0.04)',
+                      color: selectedBrands[g.id] ? PALETTE[idx % PALETTE.length] : 'var(--text-secondary)',
+                      fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.18s',
+                      opacity: selectedBrands[g.id] ? 1 : 0.5,
+                    }}
+                  >
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: PALETTE[idx % PALETTE.length], opacity: selectedBrands[g.id] ? 1 : 0.4 }} />
+                    {g.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* 데이터 다운 버튼 (더 작고 맨 우측 배치) */}
+              <button 
+                onClick={handleDownload}
+                disabled={loading || !chartData || chartData.length === 0}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 10px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: 'var(--text-secondary)',
+                  fontSize: 11, fontWeight: 700,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  opacity: (loading || !chartData || chartData.length === 0) ? 0.3 : 1,
+                  pointerEvents: (loading || !chartData || chartData.length === 0) ? 'none' : 'auto',
+                  marginLeft: 8
+                }}
+              >
+                <Download size={14} />
+                데이터 다운
+              </button>
             </div>
           </div>
         </div>
