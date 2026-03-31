@@ -6,9 +6,9 @@ import './App.css';
 
 // Brand Comparison (대시보드 1)
 const BRAND_GROUPS = [
-  { id: 'nike', name: '나이키(Nike)', keywords: ['나이키', 'nike'] },
-  { id: 'adidas', name: '아디다스(Adidas)', keywords: ['아디다스', 'adidas'] },
-  { id: 'newbalance', name: '뉴발란스(New Balance)', keywords: ['뉴발란스', 'newbalance'] }
+  { id: 'nike', name: 'Nike', keywords: ['나이키', 'nike'] },
+  { id: 'adidas', name: 'Adidas', keywords: ['아디다스', 'adidas'] },
+  { id: 'newbalance', name: 'New Balance', keywords: ['뉴발란스', 'newbalance'] }
 ];
 
 const BRAND_COLORS = {
@@ -19,11 +19,11 @@ const BRAND_COLORS = {
 
 // Category Comparison (대시보드 2)
 const CATEGORY_GROUPS = [
-  { id: 'brand', name: '브랜드 코어', keywords: ['나이키', 'nike'] },
-  { id: 'lifestyle', name: '라이프스타일', keywords: ['에어포스', '조던', '덩크로우'] },
-  { id: 'running', name: '러닝화', keywords: ['인빈시블', '페가수스', '베이퍼플라이', '나이키 러닝화'] },
-  { id: 'apparel', name: '의류', keywords: ['나이키 후드', '나이키 바람막이', '맨투맨'] },
-  { id: 'football', name: '축구/풋살화', keywords: ['나이키 축구화', '머큐리얼', '티엠포'] }
+  { id: 'brand', name: 'Brand Core', keywords: ['나이키', 'nike'] },
+  { id: 'lifestyle', name: 'Lifestyle', keywords: ['에어포스', '조던', '덩크로우'] },
+  { id: 'running', name: 'Running', keywords: ['인빈시블', '페가수스', '베이퍼플라이', '나이키 러닝화'] },
+  { id: 'apparel', name: 'Apparel', keywords: ['나이키 후드', '나이키 바람막이', '맨투맨'] },
+  { id: 'football', name: 'Football', keywords: ['나이키 축구화', '머큐리얼', '티엠포'] }
 ];
 
 const CATEGORY_COLORS = {
@@ -51,7 +51,7 @@ export default function App() {
             onClick={() => setActiveTab('brand')}
           >
             <BarChart2 size={20} />
-            <span>경쟁사 브랜드 비교</span>
+            <span>Brand Query Trend</span>
           </div>
           <div 
             className={`nav-item ${activeTab === 'category' ? 'active' : ''}`}
@@ -77,7 +77,7 @@ export default function App() {
         {activeTab === 'brand' && (
           <TrendDashboard 
             title="Nike Query Trend Tracker"
-            subtitle="나이키와 글로벌 핵심 경쟁 브랜드(아디다스, 뉴발란스)의 전체 기간 검색 추이 비교"
+            subtitle="Nike 쿼리트렌드를 경쟁사 쿼리 트렌드와 비교합니다."
             groups={BRAND_GROUPS}
             colors={BRAND_COLORS}
             showKeywords={true}

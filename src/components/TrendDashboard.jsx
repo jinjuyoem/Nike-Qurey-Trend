@@ -49,11 +49,20 @@ export default function TrendDashboard({
   const [baseGroupId, setBaseGroupId] = useState(() => (groups && groups[0]) ? groups[0].id : null);
 
   useEffect(() => {
-    const end = subDays(new Date(), 1);
+    const today = new Date();
+    let end = subDays(today, 1);
     let start;
-    if (timeUnit === 'date') start = subDays(end, 30);
-    else if (timeUnit === 'week') start = subWeeks(end, 8);
-    else if (timeUnit === 'month') start = subMonths(end, 12);
+
+    if (timeUnit === 'date') {
+      start = subDays(end, 30);
+    } else if (timeUnit === 'week') {
+      // 주간 기준: 오늘로부터 가장 가까운 '지난주 토요일'을 종료일로 설정 (꽉 찬 7일 보장)
+      end = subDays(startOfWeek(today), 1);
+      // 8주치 (종료일 다음날로부터 8주 전 일요일 시작)
+      start = subWeeks(addDays(end, 1), 8);
+    } else if (timeUnit === 'month') {
+      start = subMonths(end, 12);
+    }
     
     if (isValid(start) && isValid(end)) {
       setCustomRange({ start, end });
