@@ -583,8 +583,146 @@ export default function TrendDashboard({
         </div>
       </header>
 
-      {/* 요약 카드 위젯 */}
-      {showSummaryCards && summaryMetrics && summaryMetrics.length > 0 && (
+      {/* 카테고리별 검색어 매핑 설정 (상단 배치) */}
+      {showKeywords && (
+        <div className="keyword-info-box glass-card" style={{ marginBottom: 36, padding: 24, background: 'rgba(255,255,255,0.02)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Info size={22} color="var(--accent-primary)" />
+              <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
+                {isEditingGroups ? '카테고리별 검색어 매핑 편집' : '카테고리별 검색어 매핑 설정'}
+              </h4>
+            </div>
+            {editable && !isEditingGroups && (
+              <button className="btn btn-sm" onClick={handleEditStart} style={{ padding: '6px 16px', display:'flex', alignItems:'center', gap:6 }}>
+                <Edit3 size={14} /> 매핑 편집
+              </button>
+            )}
+          </div>
+
+          {isEditingGroups ? (
+            <div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18, lineHeight: 1.6 }}>
+                브랜드명과 검색 키워드를 직접 설정할 수 있습니다. 키워드는 <strong style={{color:'var(--text-primary)'}}>쉼표(,)</strong>로 구분하여 입력하세요. (최대 5개 브랜드)
+              </p>
+
+              <div style={{ display: 'flex', gap: 12, padding: '0 58px 8px 42px', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span style={{ width: 180, flexShrink: 0 }}>브랜드명</span>
+                <span style={{ flex: 1 }}>검색 키워드 (쉼표 구분)</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {draftGroups.map((g, idx) => (
+                  <div key={g.id || idx} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: getGroupColor(idx), flexShrink: 0 }} />
+                    <input
+                      type="text"
+                      value={g.name || ''}
+                      onChange={(e) => setDraftGroups(prev => prev.map((d, i) => i === idx ? { ...d, name: e.target.value } : d))}
+                      placeholder="브랜드명"
+                      style={{
+                        width: 170,
+                        flexShrink: 0,
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.18)',
+                        borderRadius: 8,
+                        padding: '9px 12px',
+                        color: 'var(--text-primary)',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        outline: 'none',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={g.keywordsString || ''}
+                      onChange={(e) => setDraftGroups(prev => prev.map((d, i) => i === idx ? { ...d, keywordsString: e.target.value } : d))}
+                      placeholder="예: 나이키, nike, 나이키 운동화"
+                      style={{
+                        flex: 1,
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.18)',
+                        borderRadius: 8,
+                        padding: '9px 12px',
+                        color: 'var(--text-primary)',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                    <button
+                      onClick={() => removeDraftGroup(idx)}
+                      title="삭제"
+                      style={{ background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, padding: '8px 10px', cursor: 'pointer', color: '#f87171', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {draftGroups.length < 5 && (
+                <button
+                  onClick={addDraftGroup}
+                  style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.25)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', width: '100%', justifyContent: 'center' }}
+                >
+                  <Plus size={14} /> 브랜드 추가 ({draftGroups.length}/5)
+                </button>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setIsEditingGroups(false)}
+                  style={{ padding: '9px 22px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  취소
+                </button>
+                <button
+                  onClick={saveCustomGroups}
+                  style={{ padding: '9px 22px', borderRadius: 10, background: 'var(--accent-primary)', border: 'none', color: 'var(--bg-dark)', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Check size={14} /> 저장하기
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14, opacity: 0.75 }}>
+                기준 브랜드를 선택하세요.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {activeGroups.map((g, idx) => g && (
+                  <label
+                    key={g.id || idx}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                      padding: '9px 16px', borderRadius: 12,
+                      border: `1.5px solid ${g.id === baseGroupId ? PALETTE[idx % PALETTE.length] : 'rgba(255,255,255,0.1)'}`,
+                      background: g.id === baseGroupId ? `rgba(${parseInt(PALETTE[idx % PALETTE.length].slice(1,3),16)},${parseInt(PALETTE[idx % PALETTE.length].slice(3,5),16)},${parseInt(PALETTE[idx % PALETTE.length].slice(5,7),16)},0.1)` : 'rgba(255,255,255,0.02)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="baseGroup"
+                      checked={g.id === baseGroupId}
+                      onChange={() => setBaseGroupId(g.id)}
+                      style={{ accentColor: PALETTE[idx % PALETTE.length], width: 14, height: 14 }}
+                    />
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', backgroundColor: PALETTE[idx % PALETTE.length] }} />
+                    <strong style={{ color: g.id === baseGroupId ? PALETTE[idx % PALETTE.length] : 'var(--text-secondary)', fontSize: 13 }}>{g.name}</strong>
+                    {g.id === baseGroupId && <span style={{ fontSize: 10, background: PALETTE[idx % PALETTE.length], color: '#000', padding: '1px 7px', borderRadius: 6, fontWeight: 900 }}>기준</span>}
+                    <span style={{ color: 'rgba(255,255,255,0.35)', margin: '0 1px' }}>│</span>
+                    <span style={{ opacity: 0.55, fontWeight: 400, fontSize: 12 }}>{(g.keywords || []).join(', ')}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 요약 카드 위젯 (크래시 방지 가드 추가) */}
+      {showSummaryCards && summaryMetrics && Array.isArray(summaryMetrics) && summaryMetrics.length > 0 && (
         <div className="summary-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 36 }}>
           {summaryMetrics.map((metric) => (
             <div key={metric.id} className="summary-card glass-card" style={{ 
@@ -627,218 +765,8 @@ export default function TrendDashboard({
         </div>
       )}
       
-      {/* 인구통계 분석 섹션 (정교한 렌더링 및 태그 구조 수정) */}
-      <div className="insight-section glass-card" style={{ marginBottom: 36, padding: '24px 32px', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid #03c75a', minHeight: 120, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        {!demoData ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text-secondary)', fontSize: 13 }}>
-            <div className="loader-sm" style={{ width: 16, height: 16, border: '2px solid rgba(3,199,90,0.1)', borderTop: '2px solid #03c75a', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            인구통계 데이터를 불러오는 중...
-          </div>
-        ) : (demoData.gender.male === 0 && demoData.gender.female === 0) ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>📊 분석 데이터를 표시할 수 없습니다</div>
-            <p style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.6, margin: 0 }}>해당 브랜드의 최근 검색량이 적거나 API 접근이 제한적입니다.</p>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <Activity size={18} color="#03c75a" />
-              <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Brand Demographics <small style={{ fontWeight: 500, fontSize: 11, opacity: 0.5, marginLeft: 8 }}>기준 브랜드 검색자 분석</small></h4>
-            </div>
-            
-            <div style={{ display: 'flex', gap: 60, flexWrap: 'wrap' }}>
-              {/* 성별 비중 */}
-              <div style={{ flex: '1', minWidth: 240 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                  <span>성별 비중 (Gender)</span>
-                  <span style={{ fontSize: 10, opacity: 0.5 }}>최근 30일 기준</span>
-                </div>
-                <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.05)', display: 'flex', overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female || 1)) * 100)}%`, background: '#38bdf8', transition: 'width 1s' }} />
-                    <div style={{ flex: 1, background: '#f472b6', transition: 'width 1s' }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, fontWeight: 700 }}>
-                  <span style={{ color: '#38bdf8' }}>남성 {Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female || 1)) * 100)}%</span>
-                  <span style={{ color: '#f472b6' }}>여성 {Math.round((demoData.gender.female / (demoData.gender.male + demoData.gender.female || 1)) * 100)}%</span>
-                </div>
-              </div>
 
-              {/* 연령별 분포 */}
-              <div style={{ flex: '1.5', minWidth: 300 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 16 }}>연령별 관심도 (Age Groups)</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '12px 20px' }}>
-                  {Object.entries(demoData.ages).map(([age, ratio]) => {
-                    const max = Math.max(...Object.values(demoData.ages));
-                    const pct = max > 0 ? (ratio / max) * 100 : 0;
-                    return (
-                      <div key={age} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 600 }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>{age}</span>
-                          <span style={{ color: '#fff', opacity: 0.8 }}>{Math.round(ratio)}%</span>
-                        </div>
-                        <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ width: `${pct}%`, height: '100%', background: '#03c75a', opacity: 0.8, borderRadius: 2 }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* 카테고리별 검색어 매핑 설정 */}
-      {showKeywords && (
-        <div className="keyword-info-box glass-card" style={{ marginBottom: 36, padding: 24, background: 'rgba(255,255,255,0.02)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Info size={22} color="var(--accent-primary)" />
-              <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
-                {isEditingGroups ? '카테고리별 검색어 매핑 편집' : '카테고리별 검색어 매핑 설정'}
-              </h4>
-            </div>
-            {editable && !isEditingGroups && (
-              <button className="btn btn-sm" onClick={handleEditStart} style={{ padding: '6px 16px', display:'flex', alignItems:'center', gap:6 }}>
-                <Edit3 size={14} /> 매핑 편집
-              </button>
-            )}
-          </div>
-
-          {isEditingGroups ? (
-            <div>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18, lineHeight: 1.6 }}>
-                브랜드명과 검색 키워드를 직접 설정할 수 있습니다. 키워드는 <strong style={{color:'var(--text-primary)'}}>쉼표(,)</strong>로 구분하여 입력하세요. (최대 5개 브랜드)
-              </p>
-
-              {/* 컬럼 헤더 */}
-              <div style={{ display: 'flex', gap: 12, padding: '0 58px 8px 42px', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <span style={{ width: 180, flexShrink: 0 }}>브랜드명</span>
-                <span style={{ flex: 1 }}>검색 키워드 (쉼표 구분)</span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {draftGroups.map((g, idx) => (
-                  <div key={g.id || idx} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    {/* 색상 점 */}
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: getGroupColor(idx), flexShrink: 0 }} />
-
-                    {/* 브랜드명 입력 */}
-                    <input
-                      type="text"
-                      value={g.name || ''}
-                      onChange={(e) => setDraftGroups(prev => prev.map((d, i) => i === idx ? { ...d, name: e.target.value } : d))}
-                      placeholder="브랜드명"
-                      style={{
-                        width: 170,
-                        flexShrink: 0,
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.18)',
-                        borderRadius: 8,
-                        padding: '9px 12px',
-                        color: 'var(--text-primary)',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        outline: 'none',
-                      }}
-                    />
-
-                    {/* 키워드 입력 */}
-                    <input
-                      type="text"
-                      value={g.keywordsString || ''}
-                      onChange={(e) => setDraftGroups(prev => prev.map((d, i) => i === idx ? { ...d, keywordsString: e.target.value } : d))}
-                      placeholder="예: 나이키, nike, 나이키 운동화"
-                      style={{
-                        flex: 1,
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.18)',
-                        borderRadius: 8,
-                        padding: '9px 12px',
-                        color: 'var(--text-primary)',
-                        fontSize: 13,
-                        outline: 'none',
-                      }}
-                    />
-
-                    {/* 삭제 버튼 */}
-                    <button
-                      onClick={() => removeDraftGroup(idx)}
-                      title="삭제"
-                      style={{ background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, padding: '8px 10px', cursor: 'pointer', color: '#f87171', display: 'flex', alignItems: 'center', flexShrink: 0 }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* 브랜드 추가 버튼 */}
-              {draftGroups.length < 5 && (
-                <button
-                  onClick={addDraftGroup}
-                  style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.25)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', width: '100%', justifyContent: 'center' }}
-                >
-                  <Plus size={14} /> 브랜드 추가 ({draftGroups.length}/5)
-                </button>
-              )}
-
-              {/* 저장 / 취소 */}
-              <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => setIsEditingGroups(false)}
-                  style={{ padding: '9px 22px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  취소
-                </button>
-                <button
-                  onClick={saveCustomGroups}
-                  style={{ padding: '9px 22px', borderRadius: 10, background: 'var(--accent-primary)', border: 'none', color: 'var(--bg-dark)', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                >
-                  <Check size={14} /> 저장하기
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* 보기 모드 + 기준 선택 */
-            <div>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14, opacity: 0.75 }}>
-                기준 브랜드를 선택하세요.
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {activeGroups.map((g, idx) => g && (
-                  <label
-                    key={g.id || idx}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                      padding: '9px 16px', borderRadius: 12,
-                      border: `1.5px solid ${g.id === baseGroupId ? PALETTE[idx % PALETTE.length] : 'rgba(255,255,255,0.1)'}`,
-                      background: g.id === baseGroupId ? `rgba(${parseInt(PALETTE[idx % PALETTE.length].slice(1,3),16)},${parseInt(PALETTE[idx % PALETTE.length].slice(3,5),16)},${parseInt(PALETTE[idx % PALETTE.length].slice(5,7),16)},0.1)` : 'rgba(255,255,255,0.02)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="baseGroup"
-                      checked={g.id === baseGroupId}
-                      onChange={() => setBaseGroupId(g.id)}
-                      style={{ accentColor: PALETTE[idx % PALETTE.length], width: 14, height: 14 }}
-                    />
-                    <span style={{ width: 9, height: 9, borderRadius: '50%', backgroundColor: PALETTE[idx % PALETTE.length] }} />
-                    <strong style={{ color: g.id === baseGroupId ? PALETTE[idx % PALETTE.length] : 'var(--text-secondary)', fontSize: 13 }}>{g.name}</strong>
-                    {g.id === baseGroupId && <span style={{ fontSize: 10, background: PALETTE[idx % PALETTE.length], color: '#000', padding: '1px 7px', borderRadius: 6, fontWeight: 900 }}>기준</span>}
-                    <span style={{ color: 'rgba(255,255,255,0.35)', margin: '0 1px' }}>│</span>
-                    <span style={{ opacity: 0.55, fontWeight: 400, fontSize: 12 }}>{(g.keywords || []).join(', ')}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="chart-container glass-card" style={{ padding: '36px 44px' }}>
+      <div className="chart-container glass-card" style={{ padding: '36px 44px', marginBottom: 36 }}>
         <div className="chart-header" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
             <div>
@@ -900,7 +828,7 @@ export default function TrendDashboard({
               </div>
             </div>
 
-            {/* 브랜드 토글 & 데이터 다운로드 (우측 정렬) */}
+            {/* 브랜드 토글 & 데이터 다운로드 (우측 정렬 및 다운로드 끝으로 밀기) */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'flex-end', flex: 1 }}>
               {loading && <div className="loader" style={{ marginRight: 8 }} />}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -924,21 +852,21 @@ export default function TrendDashboard({
                 ))}
               </div>
 
-              {/* 데이터 다운 버튼 (더 작고 맨 우측 배치) */}
+              {/* 데이터 다운 버튼 (맨 우측 끝 배치) */}
               <button 
                 onClick={handleDownload}
                 disabled={loading || !chartData || chartData.length === 0}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '5px 10px', borderRadius: 8,
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'var(--text-secondary)',
-                  fontSize: 11, fontWeight: 700,
+                  padding: '5px 12px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  fontSize: 11, fontWeight: 800,
                   cursor: 'pointer', transition: 'all 0.2s',
                   opacity: (loading || !chartData || chartData.length === 0) ? 0.3 : 1,
                   pointerEvents: (loading || !chartData || chartData.length === 0) ? 'none' : 'auto',
-                  marginLeft: 8
+                  marginLeft: 'auto'
                 }}
               >
                 <Download size={14} />
@@ -954,39 +882,75 @@ export default function TrendDashboard({
               <XAxis dataKey="period" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12, fontWeight: 500 }} dy={14} tickFormatter={(val) => typeof val === 'string' ? val.split('-').slice(1).join('/') : val} />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12, fontWeight: 500 }} tickFormatter={(val) => val >= 1000 ? (val/1000).toFixed(0) + 'k' : val} />
               <Tooltip content={<CustomTooltip />} />
-              {/* 메인 라인 */}
               {activeGroups.map((g, idx) => g && selectedBrands[g.id] && (
-                <Line
-                  key={g.id}
-                  type="monotone"
-                  dataKey={g.id}
-                  stroke={PALETTE[idx % PALETTE.length]}
-                  strokeWidth={g.id === baseGroupId ? 5 : 1.5}
-                  dot={false}
-                  activeDot={{ r: g.id === baseGroupId ? 7 : 4, fill: PALETTE[idx % PALETTE.length] }}
-                  opacity={g.id === baseGroupId ? 1 : 0.7}
-                  animationDuration={1200}
-                />
+                <Line key={g.id} type="monotone" dataKey={g.id} stroke={PALETTE[idx % PALETTE.length]} strokeWidth={g.id === baseGroupId ? 5 : 1.5} dot={false} activeDot={{ r: g.id === baseGroupId ? 7 : 4, fill: PALETTE[idx % PALETTE.length] }} opacity={g.id === baseGroupId ? 1 : 0.7} animationDuration={1200} />
               ))}
-              {/* 비교 기간 점선 라인 */}
               {compareMode !== 'none' && activeGroups.map((g, idx) => g && selectedBrands[g.id] && (
-                <Line
-                  key={`${g.id}_compare`}
-                  type="monotone"
-                  dataKey={`${g.id}_compare`}
-                  stroke={PALETTE[idx % PALETTE.length]}
-                  strokeWidth={g.id === baseGroupId ? 3.5 : 1}
-                  strokeDasharray="5 4"
-                  dot={false}
-                  activeDot={{ r: g.id === baseGroupId ? 5 : 3, fill: PALETTE[idx % PALETTE.length] }}
-                  opacity={g.id === baseGroupId ? 0.6 : 0.4}
-                  animationDuration={1200}
-                  legendType="none"
-                />
+                <Line key={`${g.id}_compare`} type="monotone" dataKey={`${g.id}_compare`} stroke={PALETTE[idx % PALETTE.length]} strokeWidth={g.id === baseGroupId ? 3.5 : 1} strokeDasharray="5 4" dot={false} activeDot={{ r: g.id === baseGroupId ? 5 : 3, fill: PALETTE[idx % PALETTE.length] }} opacity={g.id === baseGroupId ? 0.6 : 0.4} animationDuration={1200} legendType="none" />
               ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* 인구통계 분석 섹션 (최하단 배치) */}
+      <div className="insight-section glass-card" style={{ marginBottom: 36, padding: '24px 32px', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid #03c75a', minHeight: 120, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {!demoData ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text-secondary)', fontSize: 13 }}>
+            <div className="loader-sm" style={{ width: 16, height: 16, border: '2px solid rgba(3,199,90,0.1)', borderTop: '2px solid #03c75a', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            인구통계 데이터를 불러오는 중...
+          </div>
+        ) : (demoData.gender.male === 0 && demoData.gender.female === 0) ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>📊 분석 데이터를 표시할 수 없습니다</div>
+            <p style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.6, margin: 0 }}>해당 브랜드의 최근 검색량이 적거나 API 접근이 제한적입니다.</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <Activity size={18} color="#03c75a" />
+              <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Brand Demographics <small style={{ fontWeight: 500, fontSize: 11, opacity: 0.5, marginLeft: 8 }}>기준 브랜드 검색자 분석</small></h4>
+            </div>
+            
+            <div style={{ display: 'flex', gap: 60, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1', minWidth: 240 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+                  <span>성별 비중 (Gender)</span>
+                  <span style={{ fontSize: 10, opacity: 0.5 }}>최근 30일 기준</span>
+                </div>
+                <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.05)', display: 'flex', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female || 1)) * 100)}%`, background: '#38bdf8', transition: 'width 1s' }} />
+                    <div style={{ flex: 1, background: '#f472b6', transition: 'width 1s' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, fontWeight: 700 }}>
+                  <span style={{ color: '#38bdf8' }}>남성 {Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female || 1)) * 100)}%</span>
+                  <span style={{ color: '#f472b6' }}>여성 {Math.round((demoData.gender.female / (demoData.gender.male + demoData.gender.female || 1)) * 100)}%</span>
+                </div>
+              </div>
+
+              <div style={{ flex: '1.5', minWidth: 300 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 16 }}>연령별 관심도 (Age Groups)</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '12px 20px' }}>
+                  {Object.entries(demoData.ages).map(([age, ratio]) => {
+                    const max = Math.max(...Object.values(demoData.ages));
+                    const pct = max > 0 ? (ratio / max) * 100 : 0;
+                    return (
+                      <div key={age} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 600 }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>{age}</span>
+                          <span style={{ color: '#fff', opacity: 0.8 }}>{Math.round(ratio)}%</span>
+                        </div>
+                        <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: '#03c75a', opacity: 0.8, borderRadius: 2 }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
