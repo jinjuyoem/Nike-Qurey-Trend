@@ -187,11 +187,9 @@ export default function TrendDashboard({
   const fetchDemographics = async () => {
     if (!activeGroups || activeGroups.length === 0 || !baseGroupId) return;
 
-    // 캐시 확인
     const demoCacheKey = `nike_demo_cache_${baseGroupId}_${cacheKeySuffix}`;
     const cachedDemo = localStorage.getItem(demoCacheKey);
     if (cachedDemo) {
-      console.log('[DEBUG] Loading Demo from Cache:', demoCacheKey);
       setDemoData(JSON.parse(cachedDemo));
       return;
     }
@@ -202,7 +200,9 @@ export default function TrendDashboard({
 
       const stableDay = subDays(new Date(), 3);
       const oneMonthAgo = subMonths(stableDay, 1);
-      const catId = '50000788'; 
+      
+      // 'Fashion Items' (50000000) 카테고리를 베이스로 사용하여 모든 패션/브랜드 키워드에 대해 데이터 확보 보장
+      const catId = '50000000'; 
 
       const [genderRes, ageRes] = await Promise.all([
         axios.post('/api/naver-datalab/v1/datalab/shopping/category/keyword/gender', {
@@ -221,22 +221,29 @@ export default function TrendDashboard({
         })
       ]);
       
-      const gData = genderRes.data.results[0]?.data || [];
-      const aData = ageRes.data.results[0]?.data || [];
+      const gResults = genderRes.data.results[0]?.data || [];
+      const aResults = ageRes.data.results[0]?.data || [];
       
       let male = 0, female = 0;
-      if (gData.length > 0) {
-          const latestGItems = gData.filter(d => d.period === gData[gData.length-1].period);
-          latestGItems.forEach(item => {
-              if (item.group === 'm') male = item.ratio;
-              if (item.group === 'f') female = item.ratio;
-          });
+      if (gResults.length > 0) {
+        // 가장 최근 기간의 남녀 비중 합산
+        const latestPeriod = gResults[gResults.length - 1].period;
+        const latestItems = gResults.filter(d => d.period === latestPeriod);
+        latestItems.forEach(item => {
+          if (item.group === 'm') male = item.ratio;
+          if (item.group === 'f') female = item.ratio;
+        });
+        
+        // 데이터가 m만 있거나 한쪽만 있는 경우 보정 (비중이므로 합 100 지향)
+        if (male > 0 && female === 0) female = Math.max(0, 100 - male);
+        else if (female > 0 && male === 0) male = Math.max(0, 100 - female);
       }
 
       const ages = { '10s': 0, '20s': 0, '30s': 0, '40s': 0, '50s+': 0 };
-      if (aData.length > 0) {
-        const latestA = aData.filter(d => d.period === aData[aData.length-1].period);
-        latestA.forEach(item => {
+      if (aResults.length > 0) {
+        const latestPeriod = aResults[aResults.length - 1].period;
+        const latestItems = aResults.filter(d => d.period === latestPeriod);
+        latestItems.forEach(item => {
           if (['1', '2'].includes(item.group)) ages['10s'] += item.ratio;
           else if (['3', '4'].includes(item.group)) ages['20s'] += item.ratio;
           else if (['5', '6'].includes(item.group)) ages['30s'] += item.ratio;
@@ -246,10 +253,14 @@ export default function TrendDashboard({
       }
 
       const finalDemo = { gender: { male, female }, ages };
-      localStorage.setItem(demoCacheKey, JSON.stringify(finalDemo));
+      
+      // 하나 이상의 데이터가 있을 때만 캐싱
+      if (male > 0 || female > 0) {
+        localStorage.setItem(demoCacheKey, JSON.stringify(finalDemo));
+      }
       setDemoData(finalDemo);
     } catch (err) {
-      console.error('[DEBUG] Demo Fetch Error:', err.response?.data || err.message);
+      console.warn('[DEBUG] Demo Fetch Attempt Failed:', err.message);
       setDemoData({ gender: { male: 0, female: 0 }, ages: { '10s': 0, '20s': 0, '30s': 0, '40s': 0, '50s+': 0 } });
     }
   };
