@@ -7,12 +7,13 @@ const CUSTOMER_ID = process.env.VITE_NAVER_SEARCHAD_CUSTOMER_ID || process.env.N
 const SECRET_KEY = process.env.VITE_NAVER_SEARCHAD_SECRET || process.env.NAVER_SEARCHAD_SECRET || 'AQAAAAAMCUHSxx4GZ9XaSeolNStg8RgYtE150z1Is9UQ2+q0dw==';
 
 export default async function handler(req, res) {
-  // 프론트엔드에서 넘어온 경로 (예: /keywordstool?hintKeywords=...)를 타겟 URL로 변환
-  const targetRelativePath = req.url.replace('/api/naver-searchad', '');
-  const url = `https://api.searchad.naver.com${targetRelativePath}`;
+  // 프론트엔드에서 넘어온 경로를 타겟 URL로 변환
+  const urlObj = new URL(req.url, `http://${req.headers.host}`);
+  const targetRelativePath = urlObj.pathname.replace('/api/naver-searchad', '');
+  const url = `https://api.searchad.naver.com${targetRelativePath}${urlObj.search}`;
   
   // 시그니처 생성을 위한 URI (쿼리 스트링 제외)
-  const uri = targetRelativePath.split('?')[0];
+  const uri = targetRelativePath;
   const timestamp = Date.now().toString();
   const method = req.method.toUpperCase();
   

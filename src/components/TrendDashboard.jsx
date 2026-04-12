@@ -5,7 +5,8 @@ import {
 } from 'recharts';
 import { 
   Calendar, Download, Info, TrendingUp, TrendingDown, Minus, 
-  ChevronRight, ExternalLink, RefreshCw, Edit3, Trash2, Check, Plus
+  ChevronRight, ExternalLink, RefreshCw, Edit3, Trash2, Check, Plus,
+  Activity
 } from 'lucide-react';
 import { format, subDays, subWeeks, subMonths, subYears, isBefore, isAfter, startOfWeek, addDays, isValid, startOfDay, endOfDay, differenceInDays } from 'date-fns';
 import axios from 'axios';
@@ -139,15 +140,16 @@ export default function TrendDashboard({
           });
 
           const last30Days = (resGroup.data || []).slice(-30);
-          const ratioSum30 = last30Days.reduce((acc, curr) => acc + (curr.ratio || 0), 0);
+          const ratioSum30 = last30Days.length > 0 ? last30Days.reduce((acc, curr) => acc + (curr ? (curr.ratio || 0) : 0), 0) : 0;
 
           let multiplier = 1;
           if (ratioSum30 > 0) {
             multiplier = groupAdVolumeSum / ratioSum30;
           } else {
-            const allRatioSum = (resGroup.data || []).reduce((acc, curr) => acc + (curr.ratio || 0), 0);
+            const allRatioData = resGroup.data || [];
+            const allRatioSum = allRatioData.reduce((acc, curr) => acc + (curr ? (curr.ratio || 0) : 0), 0);
             if (allRatioSum > 0) {
-              multiplier = (groupAdVolumeSum * ((resGroup.data || []).length / 30)) / allRatioSum;
+              multiplier = (groupAdVolumeSum * (allRatioData.length / 30)) / allRatioSum;
             } else if (groupAdVolumeSum > 0) {
               multiplier = groupAdVolumeSum / 0.1;
             }
@@ -177,8 +179,10 @@ export default function TrendDashboard({
           // 불필요한 옛 캐시 삭제 (선택 사항)
         } catch(e) { console.warn('Cache limit exceeded', e); }
 
-        setRawData(processedData.map(d => ({ ...d, dateObj: new Date(d.dateObj) })));
+        setRawData(processedData.map(d => ({ ...d, dateObj: d.dateObj ? new Date(d.dateObj) : new Date() })));
       }
+    } catch (err) {
+      console.error('[ERROR] Datalab Fetch failed:', err.response?.data || err.message);
     } finally {
       setLoading(false);
     }
@@ -221,8 +225,8 @@ export default function TrendDashboard({
         })
       ]);
       
-      const gResults = genderRes.data.results[0]?.data || [];
-      const aResults = ageRes.data.results[0]?.data || [];
+      const gResults = genderRes.data?.results?.[0]?.data || [];
+      const aResults = ageRes.data?.results?.[0]?.data || [];
       
       let male = 0, female = 0;
       if (gResults.length > 0) {
@@ -303,14 +307,14 @@ export default function TrendDashboard({
           shifted = testShifted;
         }
       }
-      else shifted = new Date(prDetail.dateObj.getTime() - diffTime);
+      else shifted = prDetail && prDetail.dateObj ? new Date(prDetail.dateObj.getTime() - diffTime) : new Date(0);
 
       const comp = rawData.find(d => 
-        format(d.dateObj, 'yyyy-MM-dd') === format(shifted, 'yyyy-MM-dd') || 
-        (timeUnit === 'month' && format(d.dateObj, 'yyyy-MM') === format(shifted, 'yyyy-MM'))
+        (d && d.dateObj && shifted && format(d.dateObj, 'yyyy-MM-dd') === format(shifted, 'yyyy-MM-dd')) || 
+        (timeUnit === 'month' && d && d.dateObj && shifted && format(d.dateObj, 'yyyy-MM') === format(shifted, 'yyyy-MM'))
       );
 
-      const merged = { ...prDetail, comparePeriodStr: format(shifted, timeUnit === 'date' ? 'yy.MM.dd' : (timeUnit === 'week' ? 'yy.MM.dd(주)' : 'yy.MM(월)')) };
+      const merged = { ...prDetail, comparePeriodStr: (shifted && isValid(shifted)) ? format(shifted, timeUnit === 'date' ? 'yy.MM.dd' : (timeUnit === 'week' ? 'yy.MM.dd(주)' : 'yy.MM(월)')) : 'N/A' };
       activeGroups.forEach(g => { if(g && g.id) merged[`${g.id}_compare`] = comp ? comp[g.id] : null; });
       return merged;
     });
@@ -802,7 +806,7 @@ export default function TrendDashboard({
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.7 }}>기준 기간:</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', opacity: 0.9 }}>
-                    {format(customRange.start, timeUnit === 'month' ? 'yyyy.MM' : 'yyyy.MM.dd')} ~ {format(customRange.end, timeUnit === 'month' ? 'yyyy.MM.dd' : 'yyyy.MM.dd')}
+                    {format(customRange.start, timeUnit === 'month' ? 'yyyy.MM' : 'yyyy.MM.dd')} ~ {format(customRange.end, timeUnit === 'month' ? 'yyyy.MM' : 'yyyy.MM.dd')}
                     <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500 }}>{differenceInDays(customRange.end, customRange.start) + 1}days</span>
                   </span>
                 </div>
@@ -886,7 +890,7 @@ export default function TrendDashboard({
             </div>
           </div>
         </div>
-        <div style={{ width: '100%', height: 440 }}>
+        <div style={{ width: '100%', height: 440, minHeight: 440, position: 'relative' }}>
           <ResponsiveContainer>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
