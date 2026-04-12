@@ -8,7 +8,7 @@ import {
   ChevronRight, ExternalLink, RefreshCw, Edit3, Trash2, Check, Plus,
   Activity
 } from 'lucide-react';
-import { format, subDays, subWeeks, subMonths, subYears, isBefore, isAfter, startOfWeek, addDays, isValid, startOfDay, endOfDay, differenceInDays } from 'date-fns';
+import { format, subDays, subWeeks, subMonths, subYears, isBefore, isAfter, startOfWeek, startOfMonth, addDays, isValid, startOfDay, endOfDay, differenceInDays } from 'date-fns';
 import axios from 'axios';
 import { fetchKeywordAdVolumes } from '../api/searchAd';
 
@@ -282,40 +282,87 @@ export default function TrendDashboard({
   const chartData = useMemo(() => {
     if (!rawData || rawData.length === 0) return [];
     
-    // JSON 복원 시 dateObj가 timestamp(ms)일 수 있으므로 처리
+    // 1. 기초 가공 (날짜 객체화)
     const processedRawData = rawData.map(d => ({
       ...d,
       dateObj: d.dateObj instanceof Date ? d.dateObj : new Date(d.dateObj)
     }));
 
-    const filtered = processedRawData.filter(d => {
+    // 2. 집계 처리 (주간/월간인 경우)
+    let displayData = processedRawData;
+    if (timeUnit === 'week' || timeUnit === 'month') {
+      const groupsMap = {};
+      processedRawData.forEach(d => {
+        let key;
+        if (timeUnit === 'week') {
+          key = format(startOfWeek(d.dateObj, { weekStartsOn: 0 }), 'yyyy-MM-dd'); // 일요일 시작(0)
+        } else {
+          key = format(startOfMonth(d.dateObj), 'yyyy-MM-dd');
+        }
+        
+        if (!groupsMap[key]) {
+          groupsMap[key] = { 
+            period: key, 
+            dateObj: new Date(key),
+            _count: 0 
+          };
+          activeGroups.forEach(g => { if(g && g.id) groupsMap[key][g.id] = 0; });
+        }
+        
+        groupsMap[key]._count += 1;
+        activeGroups.forEach(g => { 
+          if(g && g.id && d[g.id] !== undefined) groupsMap[key][g.id] += (d[g.id] || 0); 
+        });
+      });
+      
+      displayData = Object.values(groupsMap).sort((a,b) => a.dateObj.getTime() - b.dateObj.getTime());
+    }
+
+    // 3. 필터링 (선택된 기간)
+    const filtered = displayData.filter(d => {
       const dt = d.dateObj.getTime();
       return dt >= startOfDay(customRange.start).getTime() && dt <= endOfDay(customRange.end).getTime();
     });
-    if (compareMode === 'none') return filtered;
 
+    if (compareMode === 'none') {
+      return filtered.map(d => ({
+        ...d,
+        period: timeUnit === 'week' ? `${format(d.dateObj, 'yy.MM.dd')}(주)` : 
+                timeUnit === 'month' ? format(d.dateObj, 'yy.MM') : d.period
+      }));
+    }
+
+    // 4. 비교 데이터 매칭
     return filtered.map((prDetail) => {
       const diffTime = Math.abs(startOfDay(customRange.end).getTime() - startOfDay(customRange.start).getTime());
       let shifted;
       if (compareMode === 'yoy') shifted = subYears(prDetail.dateObj, 1);
       else if (compareMode === 'custom') {
         const offset = prDetail.dateObj.getTime() - startOfDay(customRange.start).getTime();
-        const testShifted = new Date(startOfDay(customCompareRange.start).getTime() + offset);
-        if (testShifted.getTime() > endOfDay(customCompareRange.end).getTime()) {
-          shifted = new Date(0); // Will not map to any active data
-        } else {
-          shifted = testShifted;
-        }
+        shifted = new Date(startOfDay(customCompareRange.start).getTime() + offset);
       }
-      else shifted = prDetail && prDetail.dateObj ? new Date(prDetail.dateObj.getTime() - diffTime) : new Date(0);
+      else shifted = new Date(prDetail.dateObj.getTime() - diffTime);
 
-      const comp = rawData.find(d => 
-        (d && d.dateObj && shifted && format(d.dateObj, 'yyyy-MM-dd') === format(shifted, 'yyyy-MM-dd')) || 
-        (timeUnit === 'month' && d && d.dateObj && shifted && format(d.dateObj, 'yyyy-MM') === format(shifted, 'yyyy-MM'))
-      );
+      // 비교 대상 찾기 (집계된 데이터 전체 범위에서 찾음)
+      const comp = displayData.find(d => {
+        if (timeUnit === 'date') return format(d.dateObj, 'yyyy-MM-dd') === format(shifted, 'yyyy-MM-dd');
+        if (timeUnit === 'week') return format(startOfWeek(d.dateObj, { weekStartsOn: 0 }), 'yyyy-MM-dd') === format(startOfWeek(shifted, { weekStartsOn: 0 }), 'yyyy-MM-dd');
+        if (timeUnit === 'month') return format(d.dateObj, 'yyyy-MM') === format(shifted, 'yyyy-MM');
+        return false;
+      });
 
-      const merged = { ...prDetail, comparePeriodStr: (shifted && isValid(shifted)) ? format(shifted, timeUnit === 'date' ? 'yy.MM.dd' : (timeUnit === 'week' ? 'yy.MM.dd(주)' : 'yy.MM(월)')) : 'N/A' };
-      activeGroups.forEach(g => { if(g && g.id) merged[`${g.id}_compare`] = comp ? comp[g.id] : null; });
+      const periodLabel = timeUnit === 'week' ? `${format(prDetail.dateObj, 'yy.MM.dd')}(주)` : 
+                          timeUnit === 'month' ? format(prDetail.dateObj, 'yy.MM') : prDetail.period;
+
+      const merged = { 
+        ...prDetail, 
+        period: periodLabel,
+        comparePeriodStr: (shifted && isValid(shifted)) ? format(shifted, timeUnit === 'date' ? 'yy.MM.dd' : (timeUnit === 'week' ? 'yy.MM.dd(주)' : 'yy.MM(월)')) : 'N/A' 
+      };
+      
+      activeGroups.forEach(g => { 
+        if(g && g.id) merged[`${g.id}_compare`] = comp ? comp[g.id] : null; 
+      });
       return merged;
     });
   }, [rawData, customRange, compareMode, activeGroups, timeUnit, customCompareRange]);
