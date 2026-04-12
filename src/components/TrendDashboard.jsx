@@ -31,6 +31,7 @@ export default function TrendDashboard({
   });
 
   const [rawData, setRawData] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(false);
   const [timeUnit, setTimeUnit] = useState('date');
   const [compareMode, setCompareMode] = useState('none');
@@ -94,11 +95,25 @@ export default function TrendDashboard({
     
     // 1. 캐시 확인
     const cacheKey = `nike_datalab_cache_${cacheKeySuffix}`;
-    const cachedData = localStorage.getItem(cacheKey);
-    if (cachedData) {
-      console.log('[DEBUG] Loading Data from Cache:', cacheKey);
-      setRawData(JSON.parse(cachedData));
-      return;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        // 하위 호환성 유지 (데이터만 저장된 경우와 스토리지 구조가 바뀐 경우 대응)
+        if (parsed.data && parsed.lastUpdated) {
+          console.log('[DEBUG] Loading Data from Cache with Timestamp:', cacheKey);
+          setRawData(parsed.data.map(d => ({ ...d, dateObj: d.dateObj ? new Date(d.dateObj) : new Date() })));
+          setLastUpdated(new Date(parsed.lastUpdated));
+        } else {
+          console.log('[DEBUG] Loading Legacy Data from Cache:', cacheKey);
+          const data = Array.isArray(parsed) ? parsed : [];
+          setRawData(data.map(d => ({ ...d, dateObj: d.dateObj ? new Date(d.dateObj) : new Date() })));
+          setLastUpdated(null);
+        }
+        return;
+      } catch (e) {
+        console.error('Cache Parse Error:', e);
+      }
     }
 
     setLoading(true);
@@ -171,15 +186,19 @@ export default function TrendDashboard({
         });
 
         let processedData = formattedData;
+        const now = new Date();
         
-        // 날짜 객체 처리 (JSON 저장 시 timestamp로 변환되므로 다시 객체화 로직 필요하나 로직 상단에서 set 시에 map 처리)
         // 캐시 저장
         try {
-          localStorage.setItem(cacheKey, JSON.stringify(processedData));
-          // 불필요한 옛 캐시 삭제 (선택 사항)
+          const cachePayload = {
+            data: processedData,
+            lastUpdated: now.toISOString()
+          };
+          localStorage.setItem(cacheKey, JSON.stringify(cachePayload));
         } catch(e) { console.warn('Cache limit exceeded', e); }
 
         setRawData(processedData.map(d => ({ ...d, dateObj: d.dateObj ? new Date(d.dateObj) : new Date() })));
+        setLastUpdated(now);
       }
     } catch (err) {
       console.error('[ERROR] Datalab Fetch failed:', err.response?.data || err.message);
@@ -593,7 +612,26 @@ export default function TrendDashboard({
       <header className="header" style={{ marginBottom: 40, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 24, position: 'relative' }}>
         <div className="header-titles">
           <h1 style={{ fontSize: 34, fontWeight: 850, marginBottom: 8, letterSpacing: '-0.03em', background: 'linear-gradient(90deg, #fff 0%, #aaa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{title}</h1>
-          <p style={{ fontSize: 16, color: 'var(--text-secondary)', fontWeight: 500, maxWidth: 600 }}>{subtitle}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <p style={{ fontSize: 16, color: 'var(--text-secondary)', fontWeight: 500, margin: 0 }}>{subtitle}</p>
+            {lastUpdated && (
+              <span style={{ 
+                fontSize: 11, 
+                color: 'var(--accent-primary)', 
+                background: 'rgba(56, 189, 248, 0.08)', 
+                padding: '4px 10px', 
+                borderRadius: 6, 
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                border: '1px solid rgba(56, 189, 248, 0.2)'
+              }}>
+                <RefreshCw size={10} />
+                최근 업데이트: {format(lastUpdated, 'yyyy.MM.dd HH:mm:ss')}
+              </span>
+            )}
+          </div>
         </div>
         
         <div className="header-controls" style={{ display: 'flex', gap: 16, alignItems: 'center', width: '100%', flexWrap: 'wrap', padding: '6px 0', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 24 }}>
