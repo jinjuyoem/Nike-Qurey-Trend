@@ -513,6 +513,26 @@ export default function TrendDashboard({
     setIsEditingGroups(false);
   };
 
+  const handleGoogleTrends = () => {
+    // 활성화된(선택된) 그룹들의 대표 키워드만 추출 (구글 트렌드는 한 번에 최대 5개 키워드까지 비교 가능)
+    const keywords = activeGroups
+      .filter(g => g && selectedBrands[g.id])
+      .map(g => (g.keywords && g.keywords.length > 0) ? g.keywords[0] : g.name)
+      .slice(0, 5)
+      .join(',');
+
+    if (!keywords) {
+      alert('비교할 키워드를 1개 이상 선택해주세요.');
+      return;
+    }
+    
+    const startStr = format(customRange.start, 'yyyy-MM-dd');
+    const endStr = format(customRange.end, 'yyyy-MM-dd');
+    
+    const url = `https://trends.google.com/trends/explore?date=${startStr}%20${endStr}&geo=KR&q=${keywords}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const handleDownload = () => {
     if (!chartData || chartData.length === 0) return;
 
@@ -903,6 +923,24 @@ export default function TrendDashboard({
                   </button>
                 ))}
               </div>
+
+              {/* 구글 트렌드 연동 버튼 */}
+              <button 
+                onClick={handleGoogleTrends}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 12px', borderRadius: 8,
+                  background: 'rgba(56, 189, 248, 0.1)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  color: '#38bdf8',
+                  fontSize: 11, fontWeight: 800,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  marginLeft: 'auto'
+                }}
+              >
+                <ExternalLink size={14} />
+                구글 트렌드 함께 보기
+              </button>
 
               {/* 데이터 다운 버튼 (맨 우측 끝 배치) */}
               <button 
