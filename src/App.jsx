@@ -90,6 +90,7 @@ export default function App() {
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [iconPickerForId, setIconPickerForId] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const editInputRef = useRef(null);
   const iconPickerRef = useRef(null);
 
@@ -147,13 +148,20 @@ export default function App() {
   };
 
   const deleteDashboard = (id, e) => {
+    e?.preventDefault();
     e?.stopPropagation();
-    if (!window.confirm('이 대시보드를 삭제하시겠습니까?')) return;
-    setDashboards(prev => {
-      const updated = prev.filter(d => d.id !== id);
-      if (activeTab === id) setActiveTab(updated[0]?.id || 'brand');
-      return updated;
-    });
+    setDeleteConfirmId(id);
+  };
+
+  const executeDelete = () => {
+    if (!deleteConfirmId) return;
+    setDashboards(prev => prev.filter(d => d.id !== deleteConfirmId));
+    
+    if (activeTab === deleteConfirmId) {
+      const updated = dashboards.filter(d => d.id !== deleteConfirmId);
+      setActiveTab(updated[0]?.id || 'brand');
+    }
+    setDeleteConfirmId(null);
   };
 
   const activeDashboard = dashboards.find(d => d.id === activeTab);
@@ -311,6 +319,24 @@ export default function App() {
           <p style={{ margin: '8px 0 0 0', opacity: 0.7, fontSize: 12 }}>Data Source: NAVER Datalab Search API, Search AD API</p>
         </footer>
       </main>
+
+      {/* 커스텀 삭제 모달 */}
+      {deleteConfirmId && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDeleteConfirmId(null)}>
+          <div style={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '24px 32px', width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }} onClick={e => e.stopPropagation()}>
+            <div>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 800 }}>대시보드 삭제</h3>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <strong style={{ color: '#fff' }}>{(dashboards.find(d => d.id === deleteConfirmId)?.name || '')}</strong> 대시보드를 정말 삭제하시겠습니까?<br/>삭제된 데이터는 복구할 수 없습니다.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
+              <button onClick={() => setDeleteConfirmId(null)} style={{ padding: '8px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>취소</button>
+              <button onClick={executeDelete} style={{ padding: '8px 16px', borderRadius: 8, background: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>삭제하기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

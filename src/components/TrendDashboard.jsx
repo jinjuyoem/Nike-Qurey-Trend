@@ -46,8 +46,6 @@ export default function TrendDashboard({
     end: subDays(new Date(), 1) 
   });
 
-  const [demoData, setDemoData] = useState(null);
-
   const [selectedBrands, setSelectedBrands]   = useState({});
   const [isEditingGroups, setIsEditingGroups] = useState(false);
   const [draftGroups, setDraftGroups]         = useState([]);
@@ -211,96 +209,10 @@ export default function TrendDashboard({
     }
   };
 
-  const fetchDemographics = async () => {
-    if (!activeGroups || activeGroups.length === 0 || !baseGroupId) return;
-
-    const demoCacheKey = `nike_demo_cache_${baseGroupId}_${cacheKeySuffix}`;
-    const cachedDemo = localStorage.getItem(demoCacheKey);
-    if (cachedDemo) {
-      setDemoData(JSON.parse(cachedDemo));
-      return;
-    }
-
-    try {
-      const baseGroup = activeGroups.find(g => g.id === baseGroupId);
-      if (!baseGroup) return;
-
-      const stableDay = subDays(new Date(), 3);
-      const oneMonthAgo = subMonths(stableDay, 1);
-      
-      // 'Fashion Items' (50000000) 카테고리를 베이스로 사용하여 모든 패션/브랜드 키워드에 대해 데이터 확보 보장
-      const catId = '50000000'; 
-
-      const [genderRes, ageRes] = await Promise.all([
-        axios.post('/api/naver-datalab/v1/datalab/shopping/category/keyword/gender', {
-          startDate: format(oneMonthAgo, 'yyyy-MM-dd'),
-          endDate: format(stableDay, 'yyyy-MM-dd'),
-          timeUnit: 'month',
-          category: catId,
-          keyword: baseGroup.name
-        }),
-        axios.post('/api/naver-datalab/v1/datalab/shopping/category/keyword/age', {
-          startDate: format(oneMonthAgo, 'yyyy-MM-dd'),
-          endDate: format(stableDay, 'yyyy-MM-dd'),
-          timeUnit: 'month',
-          category: catId,
-          keyword: baseGroup.name
-        })
-      ]);
-      
-      const gResults = genderRes.data?.results?.[0]?.data || [];
-      const aResults = ageRes.data?.results?.[0]?.data || [];
-      
-      let male = 0, female = 0;
-      if (gResults.length > 0) {
-        // 가장 최근 기간의 남녀 비중 합산
-        const latestPeriod = gResults[gResults.length - 1].period;
-        const latestItems = gResults.filter(d => d.period === latestPeriod);
-        latestItems.forEach(item => {
-          if (item.group === 'm') male = item.ratio;
-          if (item.group === 'f') female = item.ratio;
-        });
-        
-        // 데이터가 m만 있거나 한쪽만 있는 경우 보정 (비중이므로 합 100 지향)
-        if (male > 0 && female === 0) female = Math.max(0, 100 - male);
-        else if (female > 0 && male === 0) male = Math.max(0, 100 - female);
-      }
-
-      const ages = { '10s': 0, '20s': 0, '30s': 0, '40s': 0, '50s+': 0 };
-      if (aResults.length > 0) {
-        const latestPeriod = aResults[aResults.length - 1].period;
-        const latestItems = aResults.filter(d => d.period === latestPeriod);
-        latestItems.forEach(item => {
-          if (['1', '2'].includes(item.group)) ages['10s'] += item.ratio;
-          else if (['3', '4'].includes(item.group)) ages['20s'] += item.ratio;
-          else if (['5', '6'].includes(item.group)) ages['30s'] += item.ratio;
-          else if (['7', '8'].includes(item.group)) ages['40s'] += item.ratio;
-          else if (['9', '10', '11'].includes(item.group)) ages['50s+'] += item.ratio;
-        });
-      }
-
-      const finalDemo = { gender: { male, female }, ages };
-      
-      // 하나 이상의 데이터가 있을 때만 캐싱
-      if (male > 0 || female > 0) {
-        localStorage.setItem(demoCacheKey, JSON.stringify(finalDemo));
-      }
-      setDemoData(finalDemo);
-    } catch (err) {
-      console.warn('[DEBUG] Demo Fetch Attempt Failed:', err.message);
-      setDemoData({ gender: { male: 0, female: 0 }, ages: { '10s': 0, '20s': 0, '30s': 0, '40s': 0, '50s+': 0 } });
-    }
-  };
-
   useEffect(() => {
     // 1. Raw Data (Trend)
     fetchDatalab();
   }, [cacheKeySuffix]);
-
-  useEffect(() => {
-    // 2. Demographics
-    fetchDemographics();
-  }, [cacheKeySuffix, baseGroupId]);
 
   const chartData = useMemo(() => {
     if (!rawData || rawData.length === 0) return [];
@@ -472,7 +384,7 @@ export default function TrendDashboard({
   }, [chartData, activeGroups, timeUnit, selectedBrands, baseGroupId, customRange, compareMode]);
 
   const autoInsights = useMemo(() => {
-    if (!summaryMetrics || !demoData) return null;
+    if (!summaryMetrics) return null;
     const base = summaryMetrics.find(m => m.isBase);
     if (!base) return null;
 
@@ -485,20 +397,8 @@ export default function TrendDashboard({
       insights.push(`${base.name}의 검색 지수가 소폭 조정 중이나 브랜드 영향력은 여전히 견고합니다.`);
     }
 
-    // 2. Gender Insight
-    const { male, female } = demoData.gender;
-    const total = male + female;
-    const mPct = total > 0 ? Math.round((male / total) * 100) : 50;
-    const fPct = 100 - mPct;
-    insights.push(`성별 비중은 ${mPct > fPct ? '남성' : '여성'}(${Math.max(mPct, fPct)}%) 중심의 소비층이 두드러지게 나타납니다.`);
-
-    // 3. Age Insight
-    const sortedAges = Object.entries(demoData.ages).sort((a,b) => b[1] - a[1]);
-    const topAge = sortedAges[0];
-    insights.push(`${topAge[0]} 연령대에서 가장 높은 브랜드 선호도를 기록하고 있습니다.`);
-
     return insights;
-  }, [summaryMetrics, demoData]);
+  }, [summaryMetrics]);
 
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -658,7 +558,6 @@ export default function TrendDashboard({
       window.URL.revokeObjectURL(url);
     }, 200);
   };
-
 
   return (
     <div className="dashboard-view">
@@ -1046,64 +945,10 @@ export default function TrendDashboard({
         </div>
       </div>
 
-      {/* 인구통계 분석 섹션 (최하단 배치) */}
-      <div className="insight-section glass-card" style={{ marginBottom: 36, padding: '24px 32px', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid #03c75a', minHeight: 120, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        {!demoData ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text-secondary)', fontSize: 13 }}>
-            <div className="loader-sm" style={{ width: 16, height: 16, border: '2px solid rgba(3,199,90,0.1)', borderTop: '2px solid #03c75a', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            인구통계 데이터를 불러오는 중...
-          </div>
-        ) : (demoData.gender.male === 0 && demoData.gender.female === 0) ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>📊 분석 데이터를 표시할 수 없습니다</div>
-            <p style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.6, margin: 0 }}>해당 브랜드의 최근 검색량이 적거나 API 접근이 제한적입니다.</p>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <Activity size={18} color="#03c75a" />
-              <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Brand Demographics <small style={{ fontWeight: 500, fontSize: 11, opacity: 0.5, marginLeft: 8 }}>기준 브랜드 검색자 분석</small></h4>
-            </div>
-            
-            <div style={{ display: 'flex', gap: 60, flexWrap: 'wrap' }}>
-              <div style={{ flex: '1', minWidth: 240 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                  <span>성별 비중 (Gender)</span>
-                  <span style={{ fontSize: 10, opacity: 0.5 }}>최근 30일 기준</span>
-                </div>
-                <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.05)', display: 'flex', overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female || 1)) * 100)}%`, background: '#38bdf8', transition: 'width 1s' }} />
-                    <div style={{ flex: 1, background: '#f472b6', transition: 'width 1s' }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, fontWeight: 700 }}>
-                  <span style={{ color: '#38bdf8' }}>남성 {Math.round((demoData.gender.male / (demoData.gender.male + demoData.gender.female || 1)) * 100)}%</span>
-                  <span style={{ color: '#f472b6' }}>여성 {Math.round((demoData.gender.female / (demoData.gender.male + demoData.gender.female || 1)) * 100)}%</span>
-                </div>
-              </div>
-
-              <div style={{ flex: '1.5', minWidth: 300 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 16 }}>연령별 관심도 (Age Groups)</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '12px 20px' }}>
-                  {Object.entries(demoData.ages).map(([age, ratio]) => {
-                    const max = Math.max(...Object.values(demoData.ages));
-                    const pct = max > 0 ? (ratio / max) * 100 : 0;
-                    return (
-                      <div key={age} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 600 }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>{age}</span>
-                          <span style={{ color: '#fff', opacity: 0.8 }}>{Math.round(ratio)}%</span>
-                        </div>
-                        <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ width: `${pct}%`, height: '100%', background: '#03c75a', opacity: 0.8, borderRadius: 2 }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+      {/* 인구통계 분석 섹션 (임시 블라인드 처리) */}
+      <div className="insight-section glass-card" style={{ marginBottom: 36, padding: '32px 32px', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid #facc15', minHeight: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 12 }}>
+        <div style={{ fontSize: 24 }}>🚧 🛠️ 🚧</div>
+        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>인구통계(성별/연령) 분석 서비스 준비중</h4>
       </div>
     </div>
   );
