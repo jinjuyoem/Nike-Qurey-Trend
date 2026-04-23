@@ -378,3 +378,70 @@
 .badge-datalab { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
 .badge-ad { background: rgba(74, 222, 128, 0.1); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.2); }
 .badge-final { background: var(--accent-primary); color: var(--bg-dark); }
+
+/* ─── Sidebar Nav Action Buttons ─── */
+.nav-item-actions {
+  display: flex;
+  gap: 2px;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.nav-item:hover .nav-item-actions,
+.nav-item.active .nav-item-actions {
+  opacity: 1;
+}
+
+.nav-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-action-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.nav-delete-btn {
+  color: #f87171 !important;
+}
+
+.nav-delete-btn:hover {
+  background: rgba(248, 113, 113, 0.15) !important;
+}
+
+/* 대시보드 추가 버튼 */
+.nav-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: none;
+  border: 1px dashed rgba(255,255,255,0.15);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 6px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.nav-add-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: rgba(56, 189, 248, 0.05);
+}

@@ -20,7 +20,8 @@ export default function TrendDashboard({
   showKeywords = true,
   editable = false,
   storageKey = null,
-  showSummaryCards = false
+  showSummaryCards = false,
+  groupLabel = '브랜드명'
 }) {
   const [activeGroups, setActiveGroups] = useState(() => {
     if (storageKey) {
@@ -47,10 +48,10 @@ export default function TrendDashboard({
 
   const [demoData, setDemoData] = useState(null);
 
-  const [selectedBrands, setSelectedBrands] = useState({});
+  const [selectedBrands, setSelectedBrands]   = useState({});
   const [isEditingGroups, setIsEditingGroups] = useState(false);
-  const [draftGroups, setDraftGroups] = useState([]);
-  const [baseGroupId, setBaseGroupId] = useState(() => (groups && groups[0]) ? groups[0].id : null);
+  const [draftGroups, setDraftGroups]         = useState([]);
+  const [baseGroupId, setBaseGroupId]         = useState(() => (groups && groups[0]) ? groups[0].id : null);
 
   useEffect(() => {
     const today = new Date();
@@ -602,10 +603,11 @@ export default function TrendDashboard({
       .map(g => ({
         id: g.name ? g.name.toLowerCase().replace(/[^a-z0-9가-힣]/g, '_') : g.id,
         name: (g.name || '').trim(),
-        keywords: (g.keywordsString || '').split(',').map(s => s.trim()).filter(Boolean)
+        // 키워드 내 띄어쓰기 자동 제거 (나이키 러닝화 → 나이키러닝화)
+        keywords: (g.keywordsString || '').split(',').map(s => s.trim().replace(/\s+/g, '')).filter(Boolean)
       }))
       .filter(g => g.name && g.keywords.length > 0);
-    if (valid.length === 0) { alert('브랜드명과 키워드를 최소 1개 이상 입력해 주세요.'); return; }
+    if (valid.length === 0) { alert(`${groupLabel}과 키워드를 최소 1개 이상 입력해 주세요.`); return; }
     setActiveGroups(valid);
     if (storageKey) localStorage.setItem(storageKey, JSON.stringify(valid));
     setIsEditingGroups(false);
@@ -664,7 +666,7 @@ export default function TrendDashboard({
         <div className="header-titles">
           <h1 style={{ fontSize: 34, fontWeight: 850, marginBottom: 8, letterSpacing: '-0.03em', background: 'linear-gradient(90deg, #fff 0%, #aaa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{title}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <p style={{ fontSize: 16, color: 'var(--text-secondary)', fontWeight: 500, margin: 0 }}>{subtitle}</p>
+            {subtitle && <p style={{ fontSize: 16, color: 'var(--text-secondary)', fontWeight: 500, margin: 0 }}>{subtitle}</p>}
             {lastUpdated && (
               <span style={{ 
                 fontSize: 11, 
@@ -679,7 +681,7 @@ export default function TrendDashboard({
                 border: '1px solid rgba(56, 189, 248, 0.2)'
               }}>
                 <RefreshCw size={10} />
-                최근 업데이트: {format(lastUpdated, 'yyyy.MM.dd HH:mm:ss')}
+                업데이트: {format(lastUpdated, 'yyyy.MM.dd HH:mm:ss')}
               </span>
             )}
           </div>
@@ -754,11 +756,11 @@ export default function TrendDashboard({
           {isEditingGroups ? (
             <div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18, lineHeight: 1.6 }}>
-                브랜드명과 검색 키워드를 직접 설정할 수 있습니다. 키워드는 <strong style={{color:'var(--text-primary)'}}>쉼표(,)</strong>로 구분하여 입력하세요. (최대 5개 브랜드)
+                {groupLabel}과 검색 키워드를 직접 설정할 수 있습니다. 키워드는 <strong style={{color:'var(--text-primary)'}}>쉼표(,)</strong>로 구분하여 입력하세요. (최대 5개)
               </p>
 
               <div style={{ display: 'flex', gap: 12, padding: '0 58px 8px 42px', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <span style={{ width: 180, flexShrink: 0 }}>브랜드명</span>
+                <span style={{ width: 180, flexShrink: 0 }}>{groupLabel}</span>
                 <span style={{ flex: 1 }}>검색 키워드 (쉼표 구분)</span>
               </div>
 
@@ -770,7 +772,7 @@ export default function TrendDashboard({
                       type="text"
                       value={g.name || ''}
                       onChange={(e) => setDraftGroups(prev => prev.map((d, i) => i === idx ? { ...d, name: e.target.value } : d))}
-                      placeholder="브랜드명"
+                      placeholder={groupLabel}
                       style={{
                         width: 170,
                         flexShrink: 0,
@@ -816,7 +818,7 @@ export default function TrendDashboard({
                   onClick={addDraftGroup}
                   style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.25)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', width: '100%', justifyContent: 'center' }}
                 >
-                  <Plus size={14} /> 브랜드 추가 ({draftGroups.length}/5)
+                  <Plus size={14} /> {groupLabel} 추가 ({draftGroups.length}/5)
                 </button>
               )}
 
@@ -838,7 +840,7 @@ export default function TrendDashboard({
           ) : (
             <div>
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14, opacity: 0.75 }}>
-                기준 브랜드를 선택하세요.
+                기준 {groupLabel}을(를) 선택하세요.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {activeGroups.map((g, idx) => g && (
