@@ -12,7 +12,7 @@ const NikeSwoosh = () => (
   <img
     src="/nike-logo.svg"
     alt="Nike"
-    style={{ height: 28, width: 'auto' }}
+    style={{ height: 28, width: 'auto', filter: 'brightness(0) invert(1)' }}
   />
 );
 
