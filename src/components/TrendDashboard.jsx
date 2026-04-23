@@ -403,6 +403,11 @@ export default function TrendDashboard({
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      // 현재 데이터의 인덱스를 찾아 이전 데이터와 비교할 수 있게 함
+      const currentPeriod = payload[0]?.payload?.period;
+      const currentIndex = chartData.findIndex(d => d.period === currentPeriod);
+      const prevItem = currentIndex > 0 ? chartData[currentIndex - 1] : null;
+
       const dateObj = payload[0]?.payload?.dateObj || new Date(label);
       const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
       let day = (timeUnit === 'date' && isValid(dateObj)) ? ` (${weekdays[dateObj.getDay()]})` : '';
@@ -412,9 +417,19 @@ export default function TrendDashboard({
       return (
         <div className="custom-tooltip" style={{ backgroundColor: 'rgba(15, 15, 15, 0.95)', border: '1px solid var(--border-color)', padding: '14px 18px', borderRadius: 10, boxShadow: '0 12px 30px rgba(0,0,0,0.6)', minWidth: 220 }}>
           <p style={{ margin: '0 0 8px 0', fontSize: 13, fontWeight: 700 }}>기준: {(payload[0]?.payload?.period || label) + day}</p>
-          {compareMode !== 'none' && payload[0]?.payload?.comparePeriodStr && (
-             <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 10 }}>비교: {payload[0]?.payload?.comparePeriodStr}</p>
+          
+          {compareMode !== 'none' ? (
+            payload[0]?.payload?.comparePeriodStr && (
+              <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 10 }}>비교: {payload[0]?.payload?.comparePeriodStr}</p>
+            )
+          ) : (
+            prevItem && (
+              <p style={{ margin: '0 0 12px 0', fontSize: 11, color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 10, fontStyle: 'italic', opacity: 0.7 }}>
+                * 이전 {timeUnit === 'date' ? '일' : timeUnit === 'week' ? '주' : '월'} 대비 증감률 표시
+              </p>
+            )
           )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
             {brandIds.map((brandId) => {
               const g = activeGroups.find(x => x && x.id === brandId);
@@ -424,51 +439,49 @@ export default function TrendDashboard({
               const entryColor = PALETTE[colorIdx % PALETTE.length];
               
               const refItem = payload.find(p => p.dataKey === brandId);
-              const compItem = payload.find(p => p.dataKey === `${brandId}_compare`);
-              
-              if (!refItem && !compItem) return null;
-              
               const refVal = refItem?.value || 0;
-              const compVal = compItem?.value || 0;
+              
+              let compVal = 0;
+              let isAutoCompare = false;
+
+              if (compareMode !== 'none') {
+                const compItem = payload.find(p => p.dataKey === `${brandId}_compare`);
+                compVal = compItem?.value || 0;
+              } else if (prevItem) {
+                compVal = prevItem[brandId] || 0;
+                isAutoCompare = true;
+              }
               
               let pctNode = null;
-              if (compareMode !== 'none') {
-                if (compVal > 0) {
-                  const pct = ((refVal - compVal) / compVal) * 100;
-                  const isPos = pct > 0;
-                  const isNeg = pct < 0;
-                  pctNode = (
-                    <span style={{ fontSize: 11, fontWeight: 800, color: isPos ? '#4ade80' : isNeg ? '#f87171' : 'var(--text-secondary)', background: isPos ? 'rgba(74, 222, 128, 0.15)' : isNeg ? 'rgba(248, 113, 113, 0.15)' : 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', minWidth: 48, justifyContent: 'center' }}>
-                      {isPos ? '+' : ''}{pct.toFixed(1)}%
-                    </span>
-                  );
-                } else if (refVal > 0) {
-                  pctNode = <span style={{ fontSize: 11, fontWeight: 800, color: '#4ade80', background: 'rgba(74, 222, 128, 0.15)', padding: '2px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', minWidth: 48, justifyContent: 'center' }}>+100.0%</span>;
-                } else {
-                  pctNode = <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', minWidth: 48, justifyContent: 'center' }}>0.0%</span>;
-                }
+              if (compVal > 0) {
+                const pct = ((refVal - compVal) / compVal) * 100;
+                const isPos = pct > 0;
+                const isNeg = pct < 0;
+                pctNode = (
+                  <span style={{ fontSize: 11, fontWeight: 800, color: isPos ? '#4ade80' : isNeg ? '#f87171' : 'var(--text-secondary)', background: isPos ? 'rgba(74, 222, 128, 0.15)' : isNeg ? 'rgba(248, 113, 113, 0.15)' : 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', minWidth: 48, justifyContent: 'center' }}>
+                    {isPos ? '+' : ''}{pct.toFixed(1)}%
+                  </span>
+                );
+              } else if (refVal > 0 && (compareMode !== 'none' || isAutoCompare)) {
+                pctNode = <span style={{ fontSize: 11, fontWeight: 800, color: '#4ade80', background: 'rgba(74, 222, 128, 0.15)', padding: '2px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', minWidth: 48, justifyContent: 'center' }}>+100.0%</span>;
               }
 
               return (
-                <div key={brandId} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div key={brandId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: entryColor }} />
-                    <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{g.name}</span>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: entryColor }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>{g.name}</span>
                   </div>
                   
-                  {compareMode === 'none' ? (
-                     <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 13, fontWeight: 700, paddingLeft: 14 }}>
-                       <span>{Math.round(refVal).toLocaleString()}</span>
-                     </div>
-                   ) : (
-                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 14 }}>
-                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
-                         <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>{Math.round(compVal).toLocaleString()}</span>
-                         <span style={{ color: '#fff', fontWeight: 700 }}>{Math.round(refVal).toLocaleString()}</span>
-                       </div>
-                       {pctNode}
-                     </div>
-                   )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600 }}>
+                      {compareMode !== 'none' && (
+                        <span style={{ textDecoration: 'line-through', opacity: 0.4, fontSize: 10, fontWeight: 400 }}>{Math.round(compVal).toLocaleString()}</span>
+                      )}
+                      <span style={{ color: '#fff' }}>{Math.round(refVal).toLocaleString()}</span>
+                    </div>
+                    {pctNode}
+                  </div>
                 </div>
               );
             })}
@@ -607,12 +620,19 @@ export default function TrendDashboard({
         </div>
         
         <div className="header-controls" style={{ display: 'flex', gap: 16, alignItems: 'center', width: '100%', flexWrap: 'wrap', padding: '6px 0', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 24 }}>
-          <div className="time-filters" style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 12, border: '1px solid var(--border-color)' }}>
-            {['date', 'week', 'month', 'custom'].map(unit => (
-              <button key={unit} className={`btn btn-sm ${timeUnit === unit ? 'active' : ''}`} onClick={() => setTimeUnit(unit)} style={{ padding: '8px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700, backgroundColor: timeUnit === unit ? 'var(--accent-primary)' : 'transparent', color: timeUnit === unit ? 'var(--bg-dark)' : 'var(--text-secondary)', border: 'none', transition: 'all 0.2s' }}>
-                {unit === 'date' ? '일간' : unit === 'week' ? '주간' : unit === 'month' ? '월간' : '지정'}
-              </button>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="time-filters" style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 12, border: '1px solid var(--border-color)' }}>
+              {['date', 'week', 'month', 'custom'].map(unit => (
+                <button key={unit} className={`btn btn-sm ${timeUnit === unit ? 'active' : ''}`} onClick={() => setTimeUnit(unit)} style={{ padding: '8px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700, backgroundColor: timeUnit === unit ? 'var(--accent-primary)' : 'transparent', color: timeUnit === unit ? 'var(--bg-dark)' : 'var(--text-secondary)', border: 'none', transition: 'all 0.2s' }}>
+                  {unit === 'date' ? '일간' : unit === 'week' ? '주간' : unit === 'month' ? '월간' : '지정'}
+                </button>
+              ))}
+            </div>
+            {timeUnit === 'week' && (
+              <div style={{ fontSize: 11, color: 'var(--accent-primary)', opacity: 0.8, fontWeight: 600, paddingLeft: 4 }}>
+                * 주간의 기준은 나이키의 기준인 일~토로 산정합니다
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
