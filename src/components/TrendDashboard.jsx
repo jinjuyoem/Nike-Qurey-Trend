@@ -65,7 +65,10 @@ export default function TrendDashboard({
       // 8주치 (종료일 다음날로부터 8주 전 일요일 시작)
       start = subWeeks(addDays(end, 1), 8);
     } else if (timeUnit === 'month') {
-      start = subMonths(end, 12);
+      // 월간 기준: 꽉 찬 전월을 기준으로 하기 위해 당월 1일의 전날(전달 말일)을 종료일로 설정
+      end = subDays(startOfMonth(today), 1);
+      // 12개월치
+      start = subMonths(addDays(end, 1), 12);
     }
     
     if (isValid(start) && isValid(end)) {
@@ -499,24 +502,72 @@ export default function TrendDashboard({
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      const sorted = [...payload].sort((a, b) => (b.value || 0) - (a.value || 0));
       const dateObj = payload[0]?.payload?.dateObj || new Date(label);
       const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
       let day = (timeUnit === 'date' && isValid(dateObj)) ? ` (${weekdays[dateObj.getDay()]})` : '';
+      
+      const brandIds = activeGroups.filter(g => g && selectedBrands[g.id]).map(g => g.id);
+
       return (
-        <div className="custom-tooltip" style={{ backgroundColor: 'rgba(15, 15, 15, 0.95)', border: '1px solid var(--border-color)', padding: '12px 16px', borderRadius: 10, boxShadow: '0 12px 30px rgba(0,0,0,0.6)' }}>
+        <div className="custom-tooltip" style={{ backgroundColor: 'rgba(15, 15, 15, 0.95)', border: '1px solid var(--border-color)', padding: '14px 18px', borderRadius: 10, boxShadow: '0 12px 30px rgba(0,0,0,0.6)', minWidth: 220 }}>
           <p style={{ margin: '0 0 8px 0', fontSize: 13, fontWeight: 700 }}>기준: {(payload[0]?.payload?.period || label) + day}</p>
           {compareMode !== 'none' && payload[0]?.payload?.comparePeriodStr && (
-             <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 8 }}>비교: {payload[0]?.payload?.comparePeriodStr}</p>
+             <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 10 }}>비교: {payload[0]?.payload?.comparePeriodStr}</p>
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {sorted.map((entry, idx) => {
-              const isComp = entry.dataKey.endsWith('_compare');
-              const g = activeGroups.find(x => x && x.id === (isComp ? entry.dataKey.replace('_compare', '') : entry.dataKey));
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+            {brandIds.map((brandId) => {
+              const g = activeGroups.find(x => x && x.id === brandId);
+              if (!g) return null;
+              
+              const colorIdx = activeGroups.indexOf(g);
+              const entryColor = PALETTE[colorIdx % PALETTE.length];
+              
+              const refItem = payload.find(p => p.dataKey === brandId);
+              const compItem = payload.find(p => p.dataKey === `${brandId}_compare`);
+              
+              if (!refItem && !compItem) return null;
+              
+              const refVal = refItem?.value || 0;
+              const compVal = compItem?.value || 0;
+              
+              let pctNode = null;
+              if (compareMode !== 'none') {
+                if (compVal > 0) {
+                  const pct = ((refVal - compVal) / compVal) * 100;
+                  const isPos = pct > 0;
+                  const isNeg = pct < 0;
+                  pctNode = (
+                    <span style={{ fontSize: 11, fontWeight: 800, color: isPos ? '#4ade80' : isNeg ? '#f87171' : 'var(--text-secondary)', background: isPos ? 'rgba(74, 222, 128, 0.15)' : isNeg ? 'rgba(248, 113, 113, 0.15)' : 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', minWidth: 48, justifyContent: 'center' }}>
+                      {isPos ? '+' : ''}{pct.toFixed(1)}%
+                    </span>
+                  );
+                } else if (refVal > 0) {
+                  pctNode = <span style={{ fontSize: 11, fontWeight: 800, color: '#4ade80', background: 'rgba(74, 222, 128, 0.15)', padding: '2px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', minWidth: 48, justifyContent: 'center' }}>+100.0%</span>;
+                } else {
+                  pctNode = <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', minWidth: 48, justifyContent: 'center' }}>0.0%</span>;
+                }
+              }
+
               return (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20, fontSize: 12 }}>
-                  <span style={{ color: entry.color, opacity: isComp ? 0.7 : 1 }}>{g?.name || entry.name} {isComp ? '(비교)' : compareMode !== 'none' ? '(기준)' : ''}</span>
-                  <span style={{ fontWeight: 700 }}>{entry.value ? Math.round(entry.value).toLocaleString() : '0'}</span>
+                <div key={brandId} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: entryColor }} />
+                    <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{g.name}</span>
+                  </div>
+                  
+                  {compareMode === 'none' ? (
+                     <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 13, fontWeight: 700, paddingLeft: 14 }}>
+                       <span>{Math.round(refVal).toLocaleString()}</span>
+                     </div>
+                   ) : (
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 14 }}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+                         <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>{Math.round(compVal).toLocaleString()}</span>
+                         <span style={{ color: '#fff', fontWeight: 700 }}>{Math.round(refVal).toLocaleString()}</span>
+                       </div>
+                       {pctNode}
+                     </div>
+                   )}
                 </div>
               );
             })}
@@ -647,13 +698,13 @@ export default function TrendDashboard({
             <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 700 }}>기준 기간:</span>
             <div className="date-picker-group" style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '8px 18px', borderRadius: 12, border: '1px solid var(--border-color)' }}>
               <Calendar size={15} color="var(--accent-primary)" />
-              <input type="date" value={isValid(customRange.start) ? format(customRange.start, 'yyyy-MM-dd') : ''} onChange={(e) => setCustomRange(p => ({...p, start: new Date(e.target.value)}))} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, outline: 'none' }} />
+              <input type="date" value={isValid(customRange.start) ? format(customRange.start, 'yyyy-MM-dd') : ''} onChange={(e) => setCustomRange(p => ({...p, start: new Date(e.target.value)}))} style={{ colorScheme: 'dark', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, outline: 'none' }} />
               <span style={{ color: 'var(--text-secondary)', fontWeight: 300 }}>~</span>
               <input type="date" value={isValid(customRange.end) ? format(customRange.end, 'yyyy-MM-dd') : ''} onChange={(e) => {
                 const picked = new Date(e.target.value);
                 const yesterday = subDays(new Date(), 1);
                 setCustomRange(p => ({...p, end: picked > yesterday ? yesterday : picked}));
-              }} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, outline: 'none' }} />
+              }} style={{ colorScheme: 'dark', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, outline: 'none' }} />
             </div>
           </div>
 
@@ -661,22 +712,22 @@ export default function TrendDashboard({
 
           <div className="compare-select" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 700 }}>비교 대상 기간:</span>
-            <select className="styled-select" value={compareMode} onChange={(e) => setCompareMode(e.target.value)} style={{ padding: '10px 40px 10px 16px', fontSize: 13, fontWeight: 700, borderRadius: 12, minWidth: 140, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
-              <option value="none">없음</option>
-              <option value="prev_period">이전 기간</option>
-              <option value="yoy">전년 동기</option>
-              <option value="custom">직접 지정</option>
+            <select className="styled-select" value={compareMode} onChange={(e) => setCompareMode(e.target.value)} style={{ padding: '10px 40px 10px 16px', fontSize: 13, fontWeight: 700, borderRadius: 12, minWidth: 140, backgroundColor: '#1a1a1a', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
+              <option value="none" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>없음</option>
+              <option value="prev_period" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>이전 기간</option>
+              <option value="yoy" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>전년 동기</option>
+              <option value="custom" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>직접 지정</option>
             </select>
             {compareMode === 'custom' && (
               <div className="date-picker-group" style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '8px 18px', borderRadius: 12, border: '1px solid var(--border-color)' }}>
                 <Calendar size={15} color="var(--text-secondary)" />
-                <input type="date" value={isValid(customCompareRange.start) ? format(customCompareRange.start, 'yyyy-MM-dd') : ''} onChange={(e) => setCustomCompareRange(p => ({...p, start: new Date(e.target.value)}))} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, outline: 'none' }} />
+                <input type="date" value={isValid(customCompareRange.start) ? format(customCompareRange.start, 'yyyy-MM-dd') : ''} onChange={(e) => setCustomCompareRange(p => ({...p, start: new Date(e.target.value)}))} style={{ colorScheme: 'dark', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, outline: 'none' }} />
                 <span style={{ color: 'var(--text-secondary)', fontWeight: 300 }}>~</span>
                 <input type="date" value={isValid(customCompareRange.end) ? format(customCompareRange.end, 'yyyy-MM-dd') : ''} onChange={(e) => {
                   const picked = new Date(e.target.value);
                   const yesterday = subDays(new Date(), 1);
                   setCustomCompareRange(p => ({...p, end: picked > yesterday ? yesterday : picked}));
-                }} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, outline: 'none' }} />
+                }} style={{ colorScheme: 'dark', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, outline: 'none' }} />
               </div>
             )}
           </div>
